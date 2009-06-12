@@ -7,8 +7,8 @@ from Struct import Struct
 def align(x, boundary):
 	return x + (x % boundary)
 
-def hexdump(s,sep=" "):
-        return sep.join(map(lambda x: "%02x"%ord(x),s))
+def hexdump(s, sep=" "):
+        return sep.join(map(lambda x: "%02x" % ord(x), s))
 
 class Crypto:
 	"""This is a Cryptographic/hash class used to abstract away things (to make changes easier)"""
@@ -22,7 +22,7 @@ class Crypto:
 		else:
 			return AES.new(titlekey, AES.MODE_CBC, iv).decrypt(data)
 	def ValidateHash(self, data, hash):
-		"""Validates a hash. (BROKEN)"""
+		"""Validates a hash. Not checking currently because we have some...issues with hashes."""
 		return 1 #hack
 #		if(hashlib.sha1(data).hexdigest() == hexdump(hash, "")):
 #			return 1
