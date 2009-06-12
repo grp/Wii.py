@@ -98,7 +98,7 @@ class U8():
 			
 		if(fn == ""):
 			if(self.f[len(self.f) - 4:] == "_out"):
-				fn = os.path.dirname(self.f) + "/" + os.path.basename(self.f)[:len(os.path.basename(self.f)) - 4].replace("_", ".")
+				fn = os.path.dirname(self.f) + "/" + os.path.basename(self.f)[:-4].replace("_", ".")
 			else:
 				fn = self.f
 			
@@ -113,6 +113,7 @@ class U8():
 		f.close()
 		
 		return fn
+		
 	def unpack(self, fn = ""):
 		"""This will unpack the U8 archive specified by the initialization parameter into either the folder specified by the parameter fn, or into a folder created with this formula:
 		``filename_extension_out``
@@ -153,7 +154,6 @@ class U8():
 			pass
 		os.chdir(fn)
 		
-		
 		recursion = [rootnode.size]
 		counter = 0
 		for node in nodes:
@@ -184,8 +184,56 @@ class U8():
 		
 		os.chdir(origdir)
 		return fn
+	def __str__(self):
+		data = open(self.f, "rb").read()
 		
-
+		offset = 0
+		
+		header = self.U8Header()
+		header.unpack(data[offset:offset + len(header)])
+		offset += len(header)
+		
+		if(header.tag != "U\xAA8-"):
+			raise NameError("Bad U8 Tag")
+		offset = header.rootnode_offset
+		
+		rootnode = self.U8Node()
+		rootnode.unpack(data[offset:offset + len(rootnode)])
+		offset += len(rootnode)
+		
+		nodes = []
+		for i in xrange(rootnode.size - 1):
+			node = self.U8Node()
+			node.unpack(data[offset:offset + len(node)])
+			offset += len(node)
+			nodes.append(node)
+		
+		strings = data[offset:offset + header.data_offset - len(header) - (len(rootnode) * rootnode.size)]
+		offset += len(strings)
+		
+		out = "[root]\n"
+		recursion = [rootnode.size]
+		counter = 0
+		for node in nodes:
+			counter += 1
+			name = strings[node.name_offset:].split('\0', 1)[0]
+			out += "  " * len(recursion)
+			if(node.type == 0x0100): #folder
+				recursion.append(node.size)
+				out += "[%s]\n" % name
+				continue
+			elif(node.type == 0): #file
+				out += "%s\n" % name
+				offset += node.size
+			else: #unknown, ignore
+				pass
+				
+			sz = recursion.pop()
+			if(sz == counter + 1):
+				pass
+			else:
+				recursion.append(sz)
+		return out
 		
 class IMD5():
 	"""This class can add and remove IMD5 headers to files. The parameter f is the file to use for the addition or removal of the header. IMD5 headers are found in banner.bin, icon.bin, and sound.bin."""
@@ -315,5 +363,3 @@ class IMET():
 
 		imet.unpack(data[:len(imet)])
 		return imet.names[1]
-	
-	
