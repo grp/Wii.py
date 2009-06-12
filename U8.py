@@ -8,7 +8,6 @@ from Struct import Struct
 from common import *
 
 
-
 class U8():
 	"""This class can unpack and pack U8 archives, which are used all over the Wii. They are often used in Banners and contents in Downloadable Titles. Please remove all headers and compression first, kthx.
 	

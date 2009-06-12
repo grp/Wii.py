@@ -5,13 +5,6 @@ import png
 from Crypto.Cipher import AES
 from Struct import Struct
 
-from compression import *
-from disc import *
-from nand import *
-from title import *
-from TPL import *
-from U8 import *
-
 
 def align(x, boundary):
 	return x + (x % boundary)
