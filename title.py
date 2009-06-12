@@ -26,6 +26,7 @@ class Ticket:
 			self.reserved = Struct.string(80)
 			self.unk3 = Struct.uint16
 			self.limits = Struct.string(96)
+			self.unk4 = Struct.uint8
 	def __init__(self, f, korean = False):
 		self.f = f
 		data = open(f, "rb").read()
