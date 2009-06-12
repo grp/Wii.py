@@ -56,6 +56,25 @@ class Ticket:
 	def setTitleID(self, titleid):
 		"""Sets the title id of the ticket from the long integer passed in titleid."""
 		self.tik.titleid = titleid
+	def __str__(self):
+		out = ""
+		out += " Ticket:\n"
+		out += "  Title ID: %08x-%08x\n" % (self.getTitleID() >> 32, self.getTitleID() & 0xFFFFFFFF)
+	
+		out += "  Title key IV: "
+		out += hexdump(report, struct.pack(">Q", self.getTitleID()) + "\x00\x00\x00\x00\x00\x00\x00\x00")
+		out += "\n"
+	
+		out += "  Title key (encrypted): "
+		out += hexdump(self.tik.enctitlekey)
+		report.write("\n")
+	
+		out += "  Title key (decrypted): "
+		out += hexdump(self.getTitleKey())
+		out += "\n"
+		
+		return out
+		
 	def dump(self, fn = ""):
 		"""Fakesigns (or Trucha signs) and dumps the ticket to either fn, if not empty, or overwriting the source if empty. Returns the output filename."""
 		self.rsamod = self.rsamod = "\x00" * 256
@@ -133,6 +152,27 @@ class TMD:
 		"""This sets the contents in the TMD to the contents you provide in the contents parameter. Also updates the TMD to the appropraite amount of contents."""
 		self.contents = contents
 		self.tmd.numcontents = len(contents)
+	def __str__(self):
+		out = ""
+		out += " TMD:\n"
+		out += "  Versions: (todo) %u, CA CRL (todo) %u, Signer CRL (todo) %u, System %u-%u\n" % (0, 0, 0, self.getIOSVersion() >> 32, self.getIOSVersion() & 0xFFFFFFFF)
+		out += "  Title ID: %08x-%08x\n" % (item.titleid >> 32, item.titleid & 0xFFFFFFFF)
+		out += "  Title Type: %u\n" % tmd.tmd.title_type
+		out += "  Group ID: '%02u'\n" % tmd.tmd.group_id
+		out += "  Access Rights: 0x%08x\n" % tmd.tmd.access_rights
+		out += "  Title Version: 0x%04x\n" % item.version
+		out += "  Boot Index: %u\n" % self.getBootIndex()
+		out += "  Contents: \n"
+	
+		out += "   ID       Index Type    Size         Hash\n"
+		contents = self.getContents()
+		for i in range(len(contents)):
+			out += "   %08X %-4u  0x%04x  %#-12x " % (contents[i].cid, contents[i].index, contents[i].type, contents[i].size)
+			out += hexdump(contents[i].hash)
+			out += "\n"
+		
+		return out
+		
 	def dump(self, fn = ""):
 		"""Dumps the TMD to the filename specified in fn, if not empty. If that is empty, it overwrites the original. This fakesigns the TMD, but does not update the hashes and the sizes, that is left as a job for you. Returns output filename."""
 		for i in range(65536):
@@ -309,6 +349,37 @@ class WAD:
 				fn = self.f
 		open(fn, "wb").write(pack)
 		return fn
+	def __str__(self):
+		out = ""
+		out += "Wii WAD:\n"
+		fd = open(self.f, 'rb')
+		headersize, wadtype, certsize, reserved, tiksize, tmdsize, datasize, footersize = struct.unpack('>I4s6I', fd.read(32))
+		
+		fd.seek(32, 1)
+		rawcert = fd.read(certsize)
+		if(certsize % 64 != 0):
+			fd.seek(64 - (certsize % 64), 1)
+
+		rawtik = fd.read(tiksize)
+		if(tiksize % 64 != 0):
+			fd.seek(64 - (tiksize % 64), 1)
+		open('tmptik', 'wb').write(rawtik)
+				
+		rawtmd = fd.read(tmdsize)
+		if(tmdsize % 64 != 0):
+			fd.seek(64 - (tmdsize % 64), 1)
+		open('tmptmd', 'wb').write(rawtmd)
+		
+		out += " Header %02x Type '%s' Certs %x Tiket %x TMD %x Data %x @ %x Footer %x\n" % (headersize, wadtype, certsize, tiksize, tmdsize, datasize, footersize)
+		
+		out += str(Ticket("tmptik"))
+		out += str(TMD("tmptmd"))
+		
+		os.remove("tmptik")
+		os.remove("tmptmd")
+		
+		return out
+		
 
 class NUS:
 	"""This class can download titles from NUS, or Nintendo Update Server. The titleid parameter is the long integer version of the title to download. The version parameter is optional and specifies the version to download. If version is not given, it is assumed to be the latest version on NUS."""
