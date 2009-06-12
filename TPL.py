@@ -1,8 +1,13 @@
 import os, hashlib, struct, subprocess, fnmatch, shutil, urllib, array
 import wx
-from Crypto.Cipher import AES
 import png
+
+from Crypto.Cipher import AES
 from Struct import Struct
+
+from common import *
+
+
 
 class TPL():
 	"""This is the class to generate TPL texutres from PNG images, and to convert TPL textures to PNG images. The parameter file specifies the filename of the source, either a PNG image or a TPL image.

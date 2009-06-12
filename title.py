@@ -1,8 +1,12 @@
 import os, hashlib, struct, subprocess, fnmatch, shutil, urllib, array
 import wx
-from Crypto.Cipher import AES
 import png
+
+from Crypto.Cipher import AES
 from Struct import Struct
+
+from common import *
+
 
 class Ticket:	
 	"""Creates a ticket from the filename defined in f. This may take a longer amount of time than expected, as it also decrypts the title key. Now supports Korean tickets (but their title keys stay Korean on dump)."""

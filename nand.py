@@ -1,8 +1,13 @@
 import os, hashlib, struct, subprocess, fnmatch, shutil, urllib, array
 import wx
-from Crypto.Cipher import AES
 import png
+
+from Crypto.Cipher import AES
 from Struct import Struct
+
+from common import *
+
+
 
 class NAND:
 	"""This class performs all NAND related things. It includes functions to copy a title (given the TMD) into the correct structure as the Wii does, and will eventually have an entire ES-like system. Parameter f to the initializer is the folder that will be used as the NAND root."""

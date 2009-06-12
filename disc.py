@@ -1,8 +1,16 @@
+import os, hashlib, struct, subprocess, fnmatch, shutil, urllib, array
+import wx
+import png
+
+from Crypto.Cipher import AES
+from Struct import Struct
+
+from common import *
+
 
 class WOD: #WiiOpticalDisc
 	def __init__(self, f):
 		self.f = f
-		
 		
 	class fsentry:
 		name = ""
@@ -82,7 +90,7 @@ class WOD: #WiiOpticalDisc
 		self.tmd = TMD("tmd")
 		
 		
-		
+		print tmd.getIOSVersion()
 		
 		
 		fst.seek(dataoffs)

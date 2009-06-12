@@ -1,8 +1,12 @@
 import os, hashlib, struct, subprocess, fnmatch, shutil, urllib, array
 import wx
-from Crypto.Cipher import AES
 import png
+
+from Crypto.Cipher import AES
 from Struct import Struct
+
+from common import *
+
 
 class LZ77():
 	class WiiLZ77: #class by marcan
