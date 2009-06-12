@@ -1,8 +1,7 @@
-import os, hashlib, struct, subprocess, fnmatch, shutil, urllib, array
+import os, struct, subprocess, fnmatch, shutil, urllib, array
 import wx
 import png
 
-from Crypto.Cipher import AES
 from Struct import Struct
 
 from common import *
@@ -44,9 +43,7 @@ class Ticket:
 		if(self.tik.commonkey_index == 1): #korean, kekekekek!
 			commonkey = koreankey
 		
-		iv = struct.pack(">Q", self.tik.titleid) + "\x00\x00\x00\x00\x00\x00\x00\x00"
-		
-		self.titlekey = AES.new(commonkey, AES.MODE_CBC, iv).decrypt(self.tik.enctitlekey)
+		self.titlekey = Crypto().DecryptTitleKey(commonkey, self.tik.titleid, self.tik.enctitlekey)
 	def getTitleKey(self):
 		"""Returns a string containing the title key."""
 		return self.titlekey
@@ -80,7 +77,7 @@ class Ticket:
 		self.rsamod = self.rsamod = "\x00" * 256
 		for i in range(65536):
 			self.tik.unk2 = i
-			if(hashlib.sha1(self.tik.pack()).hexdigest()[:2] == "00"):
+			if(Crypto().CreateSHAHashHex(self.tik.pack())[:2] == "00"):
 				break
 			if(i == 65535):
 				raise ValueError("Failed to fakesign. Aborting...")
@@ -182,7 +179,7 @@ class TMD:
 			data += self.tmd.pack()
 			for i in range(self.tmd.numcontents):
 				data += self.contents[i].pack()
-			if(hashlib.sha1(data).hexdigest()[:2] == "00"):
+			if(Crypto().CreateSHAHashHex(data)[:2] == "00"):
 				break
 			if(i == 65535):
 				raise ValueError("Failed to fakesign! Aborting...")
@@ -296,14 +293,10 @@ class WAD:
 			
 			if(decrypted):
 				if(fakesign):
-					contents[i].hash = str(hashlib.sha1(tmpdata).digest())
+					contents[i].hash = str(Crypto().CreateSHAHash(tmpdata))
 					contents[i].size = len(tmpdata)
 			
-				iv = struct.pack('>H', contents[i].index) + "\x00" * 14
-				if(len(tmpdata) % 16 != 0):
-					encdata = AES.new(titlekey, AES.MODE_CBC, iv).encrypt(tmpdata + ("\x00" * (16 - (len(tmpdata) % 16))))
-				else:
-					encdata = AES.new(titlekey, AES.MODE_CBC, iv).encrypt(tmpdata)
+				encdata = Crypto().EncryptContent(titlekey, contents[i].index, tmpdata)
 			else:
 				encdata = tmpdata
 			
@@ -406,7 +399,7 @@ class NUS:
 		#certs += rawtmd[0x628:0x628 + 0x400] #CA (tmd)
 		certs += rawtmd[0x328:0x328 + 0x300] #CP
 
-		if(hashlib.md5(certs).hexdigest() != "7ff50e2733f7a6be1677b6f6c9b625dd"):
+		if(Crypto().CreateMD5HashHex(certs) != "7ff50e2733f7a6be1677b6f6c9b625dd"):
 			raise ValueError("Failed to create certs! MD5 mistatch.")
 		
 		open("cert", "wb").write(certs)
@@ -437,7 +430,7 @@ class NUS:
 			if(decrypt):
 				data = open("%08x.app" % output, "rb").read(content.size)
 				tmpdata = Crypto().DecryptContent(titlekey, content.index, data)
-				if(Crypto().ValidateHash(tmpdata, content.hash) == 0):
+				if(Crypto().ValidateSHAHash(tmpdata, content.hash) == 0):
 					raise ValueError("Decryption failed! SHA1 mismatch.")
 				open("%08x.app" % output, "wb").write(tmpdata)
 				
