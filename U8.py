@@ -41,8 +41,8 @@ class U8():
 			self.data_offset = recursion
 			recursion += 1
 			files = sorted(os.listdir(file))
-			if(sorted(files) == ["banner.bin", "icon.bin", "sound.bin"]):
-				files = ["icon.bin", "banner.bin", "sound.bin"]
+			#if(sorted(files) == ["banner.bin", "icon.bin", "sound.bin"]):
+			#	files = ["icon.bin", "banner.bin", "sound.bin"]
 				
 			oldsz = len(self.nodes)
 			if(is_root != 1):
@@ -290,14 +290,14 @@ class IMET():
 	class IMETHeader(Struct):
 		__endian__ = Struct.BE
 		def __format__(self):
-			self.zeroes = Struct.uint8[64]
+			self.zeroes = Struct.uint8[128]
 			self.tag = Struct.string(4)
 			self.unk = Struct.uint64
 			self.sizes = Struct.uint32[3] #icon, banner, sound
-			self.flag1 = Struct.uint32
-			self.names = Struct.string(0x2A << 1, encoding = 'utf_16_be', stripNulls = True)[7]
+			self.unk2 = Struct.uint32
+			self.names = Struct.string(84, encoding = "utf-16-be", stripNulls = True)[7]
 			self.zeroes2 = Struct.uint8[904]
-			self.crypto = Struct.string(16)
+			self.hash = Struct.string(16)
 	def __init__(self, f):
 		self.f = f
 	def add(self, iconsz, bannersz, soundsz, name = "", langs = [], fn = ""):
@@ -312,6 +312,7 @@ class IMET():
 		imet.sizes[0] = iconsz
 		imet.sizes[1] = bannersz
 		imet.sizes[2] = soundsz
+		imet.unk2 = 0
 		for i in range(len(imet.names)):
 			if(len(langs) > 0 and langs[i] != ""):
 				imet.names[i] = langs[i]
@@ -319,9 +320,11 @@ class IMET():
 				imet.names[i] = name
 		for i in imet.zeroes2:
 			imet.zeroes2[i] = 0x00
-		imet.crypto = "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+		imet.hash = "\x00" * 16
+		
 		tmp = imet.pack()
-		imet.crypto = str(hashlib.md5(tmp[0x40:0x600]).digest())
+		imet.hash = hashlib.md5(tmp[0x40:0x640]).digest() #0x00 or 0x40?
+		
 		data = imet.pack() + data
 		
 		if(fn != ""):
