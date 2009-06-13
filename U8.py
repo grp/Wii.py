@@ -60,7 +60,7 @@ class U8():
 			data = f.read()
 			f.close()
 			sz = len(data)
-			data += "\x00" * (align(sz, 64) - sz)
+			data += "\x00" * (align(sz, 32) - sz) #32 seems to work best for fuzzyness? I'm still really not sure
 			node.data_offset = len(self.data)
 			self.data += data
 			node.size = sz
@@ -88,8 +88,6 @@ class U8():
 		os.chdir(origdir)
 		
 		header.header_size = (len(self.nodes) + 1) * len(rootnode) + len(self.strings)
-		print "\nstff starts: " + str(align(header.header_size + header.rootnode_offset, 64))
-		print header.header_size + header.rootnode_offset
 		header.data_offset = align(header.header_size + header.rootnode_offset, 64)
 		rootnode.size = len(self.nodes) + 1
 		rootnode.type = 0x0100
@@ -111,7 +109,6 @@ class U8():
 			fd.write(node.pack())
 		fd.write(self.strings)
 		fd.write("\x00" * (header.data_offset - header.rootnode_offset - header.header_size))
-		print (header.data_offset - header.rootnode_offset - header.header_size)
 		fd.write(self.data)
 		fd.close()
 		
