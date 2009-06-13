@@ -38,7 +38,7 @@ class U8():
 		
 		if(os.path.isdir(file)):
 			node.type = 0x0100
-			self.data_offset = recursion
+			node.data_offset = recursion - 1
 			recursion += 1
 			files = sorted(os.listdir(file))
 			#if(sorted(files) == ["banner.bin", "icon.bin", "sound.bin"]):
@@ -60,10 +60,9 @@ class U8():
 			data = f.read()
 			f.close()
 			sz = len(data)
-			while len(data) % 32 != 0:
-				data += "\x00"
+			data += "\x00" * (align(sz, 64) - sz)
+			node.data_offset = len(self.data)
 			self.data += data
-			node.data_offset = len(data)
 			node.size = sz
 			node.type = 0x0000
 			if(is_root != 1):
@@ -74,11 +73,11 @@ class U8():
 		
 		This creates valid U8 archives for all purposes."""
 		header = self.U8Header()
-		self.rootnode = self.U8Node()
+		rootnode = self.U8Node()
 		
 		header.tag = "U\xAA8-"
 		header.rootnode_offset = 0x20
-		header.zeroes = "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+		header.zeroes = "\x00" * 16
 		
 		self.nodes = []
 		self.strings = "\x00"
@@ -88,13 +87,16 @@ class U8():
 		self._pack(".", 0, 1)
 		os.chdir(origdir)
 		
-		header.header_size = (len(self.nodes) + 1) * len(self.rootnode) + len(self.strings)
-		header.data_offset = align(header.header_size + header.rootnode_offset, 0x40)
-		self.rootnode.size = len(self.nodes) + 1
-		self.rootnode.type = 0x0100
+		header.header_size = (len(self.nodes) + 1) * len(rootnode) + len(self.strings)
+		print "\nstff starts: " + str(align(header.header_size + header.rootnode_offset, 64))
+		print header.header_size + header.rootnode_offset
+		header.data_offset = align(header.header_size + header.rootnode_offset, 64)
+		rootnode.size = len(self.nodes) + 1
+		rootnode.type = 0x0100
 		
-		for node in self.nodes:
-			node.data_offset += header.data_offset
+		for i in range(len(self.nodes)):
+			if(self.nodes[i].type == 0x0000):
+				self.nodes[i].data_offset += header.data_offset
 			
 		if(fn == ""):
 			if(self.f[len(self.f) - 4:] == "_out"):
@@ -102,15 +104,16 @@ class U8():
 			else:
 				fn = self.f
 			
-		f = open(fn, "wb")
-		f.write(header.pack())
-		f.write(self.rootnode.pack())
+		fd = open(fn, "wb")
+		fd.write(header.pack())
+		fd.write(rootnode.pack())
 		for node in self.nodes:
-			f.write(node.pack())
-		f.write(self.strings)
-		f.write("\x00" * (header.data_offset - header.rootnode_offset - header.header_size))
-		f.write(self.data)
-		f.close()
+			fd.write(node.pack())
+		fd.write(self.strings)
+		fd.write("\x00" * (header.data_offset - header.rootnode_offset - header.header_size))
+		print (header.data_offset - header.rootnode_offset - header.header_size)
+		fd.write(self.data)
+		fd.close()
 		
 		return fn
 		
@@ -136,7 +139,7 @@ class U8():
 		offset += len(rootnode)
 		
 		nodes = []
-		for i in xrange(rootnode.size - 1):
+		for i in range(rootnode.size - 1):
 			node = self.U8Node()
 			node.unpack(data[offset:offset + len(node)])
 			offset += len(node)
@@ -296,7 +299,7 @@ class IMET():
 			self.sizes = Struct.uint32[3] #icon, banner, sound
 			self.unk2 = Struct.uint32
 			self.names = Struct.string(84, encoding = "utf-16-be", stripNulls = True)[7]
-			self.zeroes2 = Struct.uint8[904]
+			self.zeroes2 = Struct.uint8[840]
 			self.hash = Struct.string(16)
 	def __init__(self, f):
 		self.f = f
@@ -365,4 +368,16 @@ class IMET():
 			return ""
 
 		imet.unpack(data[:len(imet)])
-		return imet.names[1]
+		name = imet.names[1]
+		topop = []
+		for i in range(len(name)):
+			if(name[i] == "\x00"):
+				topop.append(i)
+		name = list(name)
+		popped = 0 #don't ask me why I did this
+		for pop in topop:
+			name.pop(pop - popped)
+			popped += 1	
+		
+		name = ''.join(name)
+		return name

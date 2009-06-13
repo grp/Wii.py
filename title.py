@@ -59,12 +59,12 @@ class Ticket:
 		out += "  Title ID: %08x-%08x\n" % (self.getTitleID() >> 32, self.getTitleID() & 0xFFFFFFFF)
 	
 		out += "  Title key IV: "
-		out += hexdump(report, struct.pack(">Q", self.getTitleID()) + "\x00\x00\x00\x00\x00\x00\x00\x00")
+		out += hexdump(struct.pack(">Q", self.getTitleID()) + "\x00\x00\x00\x00\x00\x00\x00\x00")
 		out += "\n"
 	
 		out += "  Title key (encrypted): "
 		out += hexdump(self.tik.enctitlekey)
-		report.write("\n")
+		out += "\n"
 	
 		out += "  Title key (decrypted): "
 		out += hexdump(self.getTitleKey())
@@ -153,11 +153,11 @@ class TMD:
 		out = ""
 		out += " TMD:\n"
 		out += "  Versions: (todo) %u, CA CRL (todo) %u, Signer CRL (todo) %u, System %u-%u\n" % (0, 0, 0, self.getIOSVersion() >> 32, self.getIOSVersion() & 0xFFFFFFFF)
-		out += "  Title ID: %08x-%08x\n" % (item.titleid >> 32, item.titleid & 0xFFFFFFFF)
-		out += "  Title Type: %u\n" % tmd.tmd.title_type
-		out += "  Group ID: '%02u'\n" % tmd.tmd.group_id
-		out += "  Access Rights: 0x%08x\n" % tmd.tmd.access_rights
-		out += "  Title Version: 0x%04x\n" % item.version
+		out += "  Title ID: %08x-%08x\n" % (self.getTitleID() >> 32, self.getTitleID() & 0xFFFFFFFF)
+		out += "  Title Type: %u\n" % self.tmd.title_type
+		out += "  Group ID: '%02u'\n" % self.tmd.group_id
+		out += "  Access Rights: 0x%08x\n" % self.tmd.access_rights
+		out += "  Title Version: 0x%04x\n" % self.tmd.title_version
 		out += "  Boot Index: %u\n" % self.getBootIndex()
 		out += "  Contents: \n"
 	

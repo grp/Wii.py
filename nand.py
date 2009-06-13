@@ -6,7 +6,7 @@ from Crypto.Cipher import AES
 from Struct import Struct
 
 from common import *
-
+from title import *
 
 
 class NAND:
@@ -95,9 +95,9 @@ class NAND:
 			cmfp.write(value)
 		cmfp.close()
 		return cnt
-	def importTitle(self, prefix, tmd, tik):
-		"""When passed a prefix (the directory to obtain the .app files from, sorted by content id), a TMD instance, and a Ticket instance, this will add that title to the NAND base folder specified in the constructor."""
-		self.ES.AddTitleStart(tmd, None, None)
+	def importTitle(self, prefix, tmd, tik, is_decrypted = False, result_decrypted = False):
+		"""When passed a prefix (the directory to obtain the .app files from, sorted by content id), a TMD instance, and a Ticket instance, this will add that title to the NAND base folder specified in the constructor. Unless is_decrypted is set, the contents are assumed to be encrypted. If result_decrypted is True, then the contents will not end up decrypted."""
+		self.ES.AddTitleStart(tmd, None, None, is_decrypted, result_decrypted, use_version = True)
 		self.ES.AddTitleTMD(tmd)
 		self.ES.AddTicket(tik)
 		contents = tmd.getContents()
@@ -167,7 +167,7 @@ class ESClass:
 			hashout += cmfp.read(20)
 		cmfp.close()
 		return hashout
-	def AddTitleStart(self, tmd, certs, crl):
+	def AddTitleStart(self, tmd, certs, crl, is_decrypted = False, result_decrypted = True, use_version = False):
 		if(not os.path.isdir(self.f + "/title/%08x" % (tmd.tmd.titleid >> 32))):
 			os.mkdir(self.f + "/title/%08x" % (tmd.tmd.titleid >> 32))
 		if(not os.path.isdir(self.f + "/title/%08x/%08x" % (tmd.tmd.titleid >> 32, tmd.tmd.titleid & 0xFFFFFFFF))):
@@ -180,6 +180,9 @@ class ESClass:
 			os.mkdir(self.f + "/ticket/%08x" % (tmd.tmd.titleid >> 32))
 		self.workingcids = array.array('L')
 		self.wtitleid = tmd.tmd.titleid
+		self.is_decrypted = is_decrypted
+		self.result_decrypted = result_decrypted
+		self.use_version = use_version
 		return
 	def AddTicket(self, tik):
 		"""Adds ticket to the title being added."""
@@ -261,15 +264,26 @@ class ESClass:
 			outfp = open(filestr, "wb")
 			data = fp.read()
 			titlekey = tik.getTitleKey()
-			tmpdata = Crypto().DecryptContent(titlekey, contents[idx].index, data)
-			if(Crypto().ValidateHash(tmpdata, contents[idx].hash) == 0):
+			if(self.is_decrypted):
+				tmpdata = data
+			else:
+				tmpdata = Crypto().DecryptContent(titlekey, contents[idx].index, data)
+			if(Crypto().ValidateSHAHash(tmpdata, contents[idx].hash) == 0):
 				"Decryption failed! SHA1 mismatch."
 				return -44
+			if(self.result_decrypted != True):
+				if(self.is_decrypted):
+					tmpdata = Crypto().EncryptContent(titlekey, contents[idx].index, data)
+				else:
+					tmpdata = data
+					
 			fp.close()
 			outfp.write(tmpdata)
 			outfp.close()
-		if(self.tmdadded):
+		if(self.tmdadded and self.use_version):
 			tmd.rawdump(self.f + "/title/%08x/%08x/content/title.tmd.%d" % (self.wtitleid >> 32, self.wtitleid & 0xFFFFFFFF, tmd.tmd.title_version))
+		elif(self.tmdadded):
+			tmd.rawdump(self.f + "/title/%08x/%08x/content/title.tmd" % (self.wtitleid >> 32, self.wtitleid & 0xFFFFFFFF))
 		if(self.ticketadded):
 			tik.rawdump(self.f + "/ticket/%08x/%08x.tik" % (self.wtitleid >> 32, self.wtitleid & 0xFFFFFFFF))
 		self.AddTitleCancel()
