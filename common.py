@@ -7,7 +7,10 @@ from Struct import Struct
 
 
 def align(x, boundary):
-	return x + (x % boundary)
+	if(x % boundary == 0):
+		return x
+	else:
+		return (x + boundary) - (x % boundary)
 
 def hexdump(s, sep=" "):
         return sep.join(map(lambda x: "%02x" % ord(x), s))

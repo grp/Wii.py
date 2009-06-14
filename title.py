@@ -31,8 +31,18 @@ class Ticket:
 			self.limits = Struct.string(96)
 			self.unk4 = Struct.uint8
 	def __init__(self, f, korean = False):
-		self.f = f
-		data = open(f, "rb").read()
+		isf = False
+		try:
+			isf = os.path.isfile(f)
+		except:
+			pass
+		if(isf):
+			self.f = f
+			data = open(f, "rb").read()
+		else:
+			self.f = "tik"
+			data = f
+			
 		self.size = len(data)
 		self.tik = self.TicketStruct()
 		self.tik.unpack(data[:len(self.tik)])
@@ -129,9 +139,18 @@ class TMD:
 			#contents follow this
 			
 	def __init__(self, f):
-		self.f = f
+		isf = False
+		try:
+			isf = os.path.isfile(f)
+		except:
+			pass
+		if(isf):
+			self.f = f
+			data = open(f, "rb").read()
+		else:
+			self.f = "tmd"
+			data = f
 		
-		data = open(f, "rb").read()
 		self.tmd = self.TMDStruct()
 		self.tmd.unpack(data[:len(self.tmd)])
 		
@@ -222,158 +241,6 @@ class TMD:
 		"""Sets the boot index of the TMD to the value of index."""
 		self.tmd.boot_index = index
 
-
-
-class WAD:
-	"""This class is to pack and unpack WAD files, which store a single title. You pass the input filename or input directory name to the parameter f.
-	
-	WAD packing support currently creates WAD files that return -4100 on install."""
-	def __init__(self, f):
-		self.f = f
-	def unpack(self, fn = ""):
-		"""Unpacks the WAD from the parameter f in the initializer to either the value of fn, if there is one, or a folder created with this formula: `filename_extension_out`. Certs are put in the file "cert", TMD in the file "tmd", ticket in the file "tik", and contents are put in the files based on index and with ".app" added to the end."""
-		fd = open(self.f, 'rb')
-		headersize, wadtype, certsize, reserved, tiksize, tmdsize, datasize, footersize = struct.unpack('>I4s6I', fd.read(32))
-		
-		try:
-			if(fn == ""):
-				fn = self.f.replace(".", "_") + "_out"
-			os.mkdir(fn)
-		except OSError:
-			pass
-		os.chdir(fn)
-		
-		fd.seek(32, 1)
-		rawcert = fd.read(certsize)
-		if(certsize % 64 != 0):
-			fd.seek(64 - (certsize % 64), 1)
-		open('cert', 'wb').write(rawcert)
-
-		rawtik = fd.read(tiksize)
-		if(tiksize % 64 != 0):
-			fd.seek(64 - (tiksize % 64), 1)
-		open('tik', 'wb').write(rawtik)
-				
-		rawtmd = fd.read(tmdsize)
-		if(tmdsize % 64 != 0):
-			fd.seek(64 - (tmdsize % 64), 1)
-		open('tmd', 'wb').write(rawtmd)
-		
-		titlekey = Ticket("tik").getTitleKey()
-		contents = TMD("tmd").getContents()
-		for i in range(0, len(contents)):
-			tmpsize = contents[i].size
-			if(tmpsize % 16 != 0):
-				tmpsize += 16 - (tmpsize % 16)
-			tmptmpdata = fd.read(tmpsize)
-			tmpdata = Crypto().DecryptContent(titlekey, contents[i].index, tmptmpdata)
-			open("%08x.app" % contents[i].index, "wb").write(tmpdata)
-			if(tmpsize % 64 != 0):
-				fd.seek(64 - (tmpsize % 64), 1)
-		fd.close()
-		os.chdir('..')
-		
-		return fn
-
-	def pack(self, fn = "", titleid = "", fakesign = True, decrypted = True):
-		"""Packs a WAD into the filename specified by fn, if it is not empty. If it is empty, it packs into a filename generated from the folder's name. If fakesign is True, it will fakesign the Ticket and TMD, and update them as needed. If decrypted is true, it will assume the contents are already decrypted. For now, fakesign can not be True if decrypted is False, however fakesign can be False if decrypted is True. Title ID is a long integer of the destination title id."""
-		os.chdir(self.f)
-		
-		tik = Ticket("tik")
-		tmd = TMD("tmd")
-		if(titleid != "" and fakesign):
-			tmd.setTitleID(titleid)
-			tik.setTitleID(titleid)
-		titlekey = tik.getTitleKey()
-		contents = tmd.getContents()
-		
-		apppack = ""
-		for i in range(len(contents)):
-			tmpdata = open("%08x.app" % i, "rb").read()
-			
-			if(decrypted):
-				if(fakesign):
-					contents[i].hash = str(Crypto().CreateSHAHash(tmpdata))
-					contents[i].size = len(tmpdata)
-			
-				encdata = Crypto().EncryptContent(titlekey, contents[i].index, tmpdata)
-			else:
-				encdata = tmpdata
-			
-			apppack += encdata
-			if(len(encdata) % 64 != 0):
-				apppack += "\x00" * (64 - (len(encdata) % 64))
-					
-		if(fakesign):
-			tmd.setContents(contents)
-			tmd.dump()
-			tik.dump()
-		
-		rawtmd = open("tmd", "rb").read()
-		rawcert = open('cert', 'rb').read()
-		rawtik = open("tik", "rb").read()
-		
-		sz = 0
-		for i in range(len(contents)):
-			sz += contents[i].size
-			if(sz % 64 != 0):
-				sz += 64 - (contents[i].size % 64)
-		
-		pack = struct.pack('>I4s6I', 32, "Is\x00\x00", len(rawcert), 0, len(rawtik), len(rawtmd), sz, 0)
-		pack += "\x00" * 32
-		
-		pack += rawcert
-		if(len(rawcert) % 64 != 0):
-			pack += "\x00" * (64 - (len(rawcert) % 64))
-		pack += rawtik
-		if(len(rawtik) % 64 != 0):
-			pack += "\x00" * (64 - (len(rawtik) % 64))
-		pack += rawtmd
-		if(len(rawtmd) % 64 != 0):
-			pack += "\x00" * (64 - (len(rawtmd) % 64))
-		
-		pack += apppack
-		
-		os.chdir('..')
-		if(fn == ""):
-			if(self.f[len(self.f) - 4:] == "_out"):
-				fn = os.path.dirname(self.f) + "/" + os.path.basename(self.f)[:len(os.path.basename(self.f)) - 4].replace("_", ".")
-			else:
-				fn = self.f
-		open(fn, "wb").write(pack)
-		return fn
-	def __str__(self):
-		out = ""
-		out += "Wii WAD:\n"
-		fd = open(self.f, 'rb')
-		headersize, wadtype, certsize, reserved, tiksize, tmdsize, datasize, footersize = struct.unpack('>I4s6I', fd.read(32))
-		
-		fd.seek(32, 1)
-		rawcert = fd.read(certsize)
-		if(certsize % 64 != 0):
-			fd.seek(64 - (certsize % 64), 1)
-
-		rawtik = fd.read(tiksize)
-		if(tiksize % 64 != 0):
-			fd.seek(64 - (tiksize % 64), 1)
-		open('tmptik', 'wb').write(rawtik)
-				
-		rawtmd = fd.read(tmdsize)
-		if(tmdsize % 64 != 0):
-			fd.seek(64 - (tmdsize % 64), 1)
-		open('tmptmd', 'wb').write(rawtmd)
-		
-		out += " Header %02x Type '%s' Certs %x Tiket %x TMD %x Data %x @ %x Footer %x\n" % (headersize, wadtype, certsize, tiksize, tmdsize, datasize, footersize)
-		
-		out += str(Ticket("tmptik"))
-		out += str(TMD("tmptmd"))
-		
-		os.remove("tmptik")
-		os.remove("tmptmd")
-		
-		return out
-		
-
 class NUS:
 	"""This class can download titles from NUS, or Nintendo Update Server. The titleid parameter is the long integer version of the title to download. The version parameter is optional and specifies the version to download. If version is not given, it is assumed to be the latest version on NUS."""
 	def __init__(self, titleid, version = None):
@@ -396,7 +263,6 @@ class NUS:
 		
 		certs += rawtik[0x2A4:0x2A4 + 0x300] #XS
 		certs += rawtik[0x2A4 + 0x300:] #CA (tik)
-		#certs += rawtmd[0x628:0x628 + 0x400] #CA (tmd)
 		certs += rawtmd[0x328:0x328 + 0x300] #CP
 
 		if(Crypto().CreateMD5HashHex(certs) != "7ff50e2733f7a6be1677b6f6c9b625dd"):
@@ -435,3 +301,161 @@ class NUS:
 				open("%08x.app" % output, "wb").write(tmpdata)
 				
 		os.chdir("..")
+
+class WAD:
+	"""This class is to pack and unpack WAD files, which store a single title. You pass the input filename or input directory name to the parameter f.
+	
+	WAD packing support currently creates WAD files that return -4100 on install."""
+	def __init__(self, f, boot2 = False):
+		self.f = f
+		self.boot2 = boot2
+	def pack(self, fn = "", fakesign = True, decrypted = True):
+		"""Packs a WAD into the filename specified by fn, if it is not empty. If it is empty, it packs into a filename generated from the folder's name. If fakesign is True, it will fakesign the Ticket and TMD, and update them as needed. If decrypted is true, it will assume the contents are already decrypted. For now, fakesign can not be True if decrypted is False, however fakesign can be False if decrypted is True. Title ID is a long integer of the destination title id."""
+		os.chdir(self.f)
+		
+		tik = Ticket("tik")
+		tmd = TMD("tmd")
+		titlekey = tik.getTitleKey()
+		contents = tmd.getContents()
+		
+		apppack = ""
+		for content in contents:
+			tmpdata = open("%08x.app" % content.index, "rb").read()
+			
+			if(decrypted):
+				if(fakesign):
+					content.hash = str(Crypto().CreateSHAHash(tmpdata))
+					content.size = len(tmpdata)
+			
+				encdata = Crypto().EncryptContent(titlekey, content.index, tmpdata)
+			else:
+				encdata = tmpdata
+			
+			apppack += encdata
+			if(len(encdata) % 64 != 0):
+				apppack += "\x00" * (64 - (len(encdata) % 64))
+					
+		if(fakesign):
+			tmd.setContents(contents)
+			tmd.dump()
+			tik.dump()
+		
+		rawtmd = open("tmd", "rb").read()
+		rawcert = open("cert", "rb").read()
+		rawtik = open("tik", "rb").read()
+		
+		sz = 0
+		for i in range(len(contents)):
+			sz += contents[i].size
+			if(sz % 64 != 0):
+				sz += 64 - (contents[i].size % 64)
+		
+		if(self.boot2 != True):
+			pack = struct.pack('>I4s6I', 32, "Is\x00\x00", len(rawcert), 0, len(rawtik), len(rawtmd), sz, 0)
+			pack += "\x00" * 32
+		else:
+			pack = struct.pack('>IIIII12s', 32, align(len(rawcert) + len(rawtik) + len(rawtmd), 0x40), len(rawcert), len(rawtik), len(rawtmd), "\x00" * 12)
+		
+		pack += rawcert
+		if(len(rawcert) % 64 != 0 and self.boot2 != True):
+			pack += "\x00" * (64 - (len(rawcert) % 64))
+		pack += rawtik
+		if(len(rawtik) % 64 != 0 and self.boot2 != True):
+			pack += "\x00" * (64 - (len(rawtik) % 64))
+		pack += rawtmd
+		if(len(rawtmd) % 64 != 0 and self.boot2 != True):
+			pack += "\x00" * (64 - (len(rawtmd) % 64))
+		
+		if(self.boot2 == True):
+			pack += "\x00" * (align(len(rawcert) + len(rawtik) + len(rawtmd), 0x40) - (len(rawcert) + len(rawtik) + len(rawtmd)))
+		
+		pack += apppack
+		
+		os.chdir('..')
+		if(fn == ""):
+			if(self.f[len(self.f) - 4:] == "_out"):
+				fn = os.path.dirname(self.f) + "/" + os.path.basename(self.f)[:len(os.path.basename(self.f)) - 4].replace("_", ".")
+			else:
+				fn = self.f
+		open(fn, "wb").write(pack)
+		return fn
+	def unpack(self, fn = ""):
+		"""Unpacks the WAD from the parameter f in the initializer to either the value of fn, if there is one, or a folder created with this formula: `filename_extension_out`. Certs are put in the file "cert", TMD in the file "tmd", ticket in the file "tik", and contents are put in the files based on index and with ".app" added to the end."""
+		fd = open(self.f, 'rb')
+		if(self.boot2 != True):
+			headersize, wadtype, certsize, reserved, tiksize, tmdsize, datasize, footersize, padding= struct.unpack('>I4s6I32s', fd.read(64))
+		else:
+			headersize, data_offset, certsize, tiksize, tmdsize, padding = struct.unpack('>IIIII12s', fd.read(32))
+		
+		try:
+			if(fn == ""):
+				fn = self.f.replace(".", "_") + "_out"
+			os.mkdir(fn)
+		except OSError:
+			pass
+		os.chdir(fn)
+		
+		rawcert = fd.read(certsize)
+		if(self.boot2 != True):
+			if(certsize % 64 != 0):
+				fd.seek(64 - (certsize % 64), 1)
+		open('cert', 'wb').write(rawcert)
+
+		rawtik = fd.read(tiksize)
+		if(self.boot2 != True):
+			if(tiksize % 64 != 0):
+				fd.seek(64 - (tiksize % 64), 1)
+		open('tik', 'wb').write(rawtik)
+				
+		rawtmd = fd.read(tmdsize)
+		if(self.boot2 == True):
+			fd.seek(data_offset)
+		else:
+			fd.seek(64 - (tmdsize % 64), 1)
+		open('tmd', 'wb').write(rawtmd)
+		
+		titlekey = Ticket("tik").getTitleKey()
+		contents = TMD("tmd").getContents()
+		for i in range(0, len(contents)):
+			tmpsize = contents[i].size
+			if(tmpsize % 16 != 0):
+				tmpsize += 16 - (tmpsize % 16)
+			tmptmpdata = fd.read(tmpsize)
+			tmpdata = Crypto().DecryptContent(titlekey, contents[i].index, tmptmpdata)
+			open("%08x.app" % contents[i].index, "wb").write(tmpdata)
+			if(tmpsize % 64 != 0):
+				fd.seek(64 - (tmpsize % 64), 1)
+		fd.close()
+		os.chdir('..')
+		
+		return fn
+	def __str__(self):
+		out = ""
+		out += "Wii WAD:\n"
+		fd = open(self.f, 'rb')
+		
+		if(self.boot2 != True):
+			headersize, wadtype, certsize, reserved, tiksize, tmdsize, datasize, footersize, padding= struct.unpack('>I4s6I32s', fd.read(64))
+		else:
+			headersize, data_offset, certsize, tiksize, tmdsize, padding = struct.unpack('>IIIII12s', fd.read(32))
+		
+		rawcert = fd.read(certsize)
+		if(certsize % 64 != 0):
+			fd.seek(64 - (certsize % 64), 1)
+		rawtik = fd.read(tiksize)
+		if(self.boot2 != True):
+			if(tiksize % 64 != 0):
+				fd.seek(64 - (tiksize % 64), 1)		
+		rawtmd = fd.read(tmdsize)
+		
+		if(self.boot2 != True):
+			out += " Header %02x Type '%s' Certs %x Tiket %x TMD %x Data %x Footer %x\n" % (headersize, wadtype, certsize, tiksize, tmdsize, datasize, footersize)
+		else:
+			out += " Header %02x Type 'boot2' Certs %x Tiket %x TMD %x Data @ %x\n" % (headersize, certsize, tiksize, tmdsize, data_offset)
+		
+		out += str(Ticket(rawtik))
+		out += str(TMD(rawtmd))
+		
+		return out
+
+
