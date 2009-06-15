@@ -106,7 +106,9 @@ class Ticket:
 		else:
 			open(fn, "wb").write(self.tik.pack())
 			return fn
-
+	def __len__(self):
+		sz = len(self.tik)
+		return sz
 
 class TMD:
 	"""This class allows you to edit TMDs. TMD (Title Metadata) files are used in many places to hold information about titles. The parameter f to the initialization is the filename to open and create a TMD from."""
@@ -188,7 +190,12 @@ class TMD:
 			out += "\n"
 		
 		return out
-		
+	def __len__(self):
+		contents = self.getContents()
+		sz = len(self.tmd)
+		for i in range(len(contents)):
+			sz += len(contents[i])
+		return sz
 	def dump(self, fn = ""):
 		"""Dumps the TMD to the filename specified in fn, if not empty. If that is empty, it overwrites the original. This fakesigns the TMD, but does not update the hashes and the sizes, that is left as a job for you. Returns output filename."""
 		for i in range(65536):
@@ -457,5 +464,3 @@ class WAD:
 		out += str(TMD(rawtmd))
 		
 		return out
-
-
