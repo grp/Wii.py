@@ -27,6 +27,7 @@ class CCF():
 			self.fileSizeDecompressed = Struct.uint32
 
 	def __init__(self, fileName):
+		self.fileName = fileName
 		self.fd = open(fileName, 'r+b')
 		
 	def compress(self, folder):
@@ -85,8 +86,12 @@ class CCF():
 		if fileHdr.magic != "\x43\x43\x46\x00":
 			raise ValueError("Wrong magic, 0x{0}".format(fileHdr.magic))
 			
-		os.mkdir('/' + self.fd.name.replace(".", "_") + "_out")
-		os.chdir('/' + self.fd.name.replace(".", "_") + "_out")
+		try:
+			os.mkdir(os.path.dirname(self.fileName) + '/' + self.fd.name.replace(".", "_") + "_out")
+		except:
+			pass
+			
+		os.chdir(os.path.dirname(self.fileName) + '/' + self.fd.name.replace(".", "_") + "_out")
 		
 		currentOffset = len(fileHdr)
 		
