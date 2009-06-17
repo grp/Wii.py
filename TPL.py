@@ -52,7 +52,12 @@ class TPL():
 			self.format = Struct.uint32
 			self.offset = Struct.uint32
 	def __init__(self, file):
-		self.file = file
+		if(os.path.isfile(file)):
+			self.file = file
+			self.data = None
+		else:
+			self.file = None
+			self.data = file
 	def toTPL(self, outfile, width = 0, height = 0): #single texture only
 		"""This converts a PNG image into a TPL. The PNG image is specified as the file parameter to the class initializer, while the output filename is specified here as the parameter outfile. Width and height are optional parameters and specify the size to resize the image to, if needed. Returns the output filename.
 		
@@ -133,7 +138,10 @@ class TPL():
 		"""This converts a TPL texture to a PNG image. You specify the input TPL filename in the initializer, and you specify the output filename in the outfile parameter to this method. Returns the output filename.
 		
 		This only supports single textured TPL images."""
-		data = open(self.file, "rb").read()
+		if(self.file):
+			data = open(self.file, "rb").read()
+		else:
+			data = self.data
 		
 		header = self.TPLHeader()
 		textures = []
