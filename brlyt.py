@@ -29,6 +29,12 @@ def bit_place(num, start, end=None):
         end = start
     assert num <= 2**(end - start)
     return num << (31 - end)
+    
+def untv(name):
+    #assert '\0' not in name
+    lex = len(name) + 16
+    lex -= lex % 16
+    return name.ljust(lex, '\0')
 ''' END THEFT FROM COMEX '''
     
 class BRLYT_Numoffs:
@@ -385,6 +391,10 @@ class BRLYT_TexRef:
     print "Wrap_S: %02x" % self.wrap_s
     print "Wrap_T: %02x" % self.wrap_t
     return
+  def set_texture(self, texture, wrap_s=0, wrap_t=0):
+    setl.texture_offset = texture
+    self.wrap_s = wrap_s
+    self.wrap_s = wrap_t
   def get_length(self):
     templength = 2 + 1 + 1
     return templength
@@ -500,31 +510,34 @@ class BRLYT_Material:
     for x in range(bit_extract(self.flags, 7)):
       self.uabs[x].show_uab()
     return
+  def set_texture(self, texture, wrap_s=0, wrap_t=0):
+    self.texrefs[0] = BRLYT_TexRef()
+    self.texrefs[0].set_texture(texture, wrap_s, wrap_t)
   def get_length(self):
     templength = 20 + self.forecolor.get_length() + self.backcolor.get_length()
     templength = templength + self.unknowncolor.get_length() + self.tevcolor.get_length() + 4
-    for x in self.texrefs:
-      templength = templength + x.get_length()
-    for x in self.texturemaps:
-      templength = templength + x.get_length()
-    for x in self.ua3s:
-      templength = templength + x.get_length()
-    for x in self.ua4s:
-      templength = templength + x.get_length()
-    for x in self.ua5s:
-      templength = templength + x.get_length()
-    for x in self.ua6s:
-      templength = templength + x.get_length()
-    for x in self.ua7s:
-      templength = templength + x.get_length()
-    for x in self.ua8s:
-      templength = templength + x.get_length()
-    for x in self.ua9s:
-      templength = templength + x.get_length()
-    for x in self.uaas:
-      templength = templength + x.get_length()
-    for x in self.uabs:
-      templength = templength + x.get_length()
+    for x in range(len(self.texrefs)):
+      templength = templength + self.texrefs[x].get_length()
+    for x in range(len(self.texturemaps)):
+      templength = templength + self.texturemaps[x].get_length()
+    for x in range(len(self.ua3s)):
+      templength = templength + self.ua3s[x].get_length()
+    for x in range(len(self.ua4s)):
+      templength = templength + self.ua4s[x].get_length()
+    for x in range(len(self.ua5s)):
+      templength = templength + self.ua5s[x].get_length()
+    for x in range(len(self.ua6s)):
+      templength = templength + self.ua6s[x].get_length()
+    for x in range(len(self.ua7s)):
+      templength = templength + self.ua7s[x].get_length()
+    for x in range(len(self.ua8s)):
+      templength = templength + self.ua8s[x].get_length()
+    for x in range(len(self.ua9s)):
+      templength = templength + self.ua9s[x].get_length()
+    for x in range(len(self.uaas)):
+      templength = templength + self.uaas[x].get_length()
+    for x in range(len(self.uabs)):
+      templength = templength + self.uabs[x].get_length()
     return templength
   def write_to_file(self, file):
     file.write(struct.pack('>20s', self.name))
@@ -738,7 +751,7 @@ class BRLYT_txt1:
     print "Font Size Y: %f" % self.font_size_y
     print "Character Spacing: %f" % self.char_space
     print "Line Spacing: %f" % self.line_space
-    #print "Text: ", self.text # N E E D S   S O M E   W O R K
+    print "Text: ", self.text # N E E D S   S O M E   W O R K
     return
   def get_text_length(self):
     return len(self.text)
@@ -768,7 +781,8 @@ class BRLYT_txt1:
     file.write(struct.pack('>f', self.font_size_y))
     file.write(struct.pack('>f', self.char_space))
     file.write(struct.pack('>f', self.line_space))
-    file.write(self.text)
+    text = untv(unicode(self.text).encode('utf_16_be'))
+    file.write(text)
     return
 
 class BRLYT_pic1:
@@ -1070,9 +1084,11 @@ class BRLYT_mat1:
       print "Offsets[%d]: %08x" % ( x , self.offsets[x] )
       self.materials[x].show_material()
     return
-  def add_material(self):
+  def add_material(self, material, texture):
     self.materials[self.numoffs.number] = BRLYT_Material()
     self.numoffs.add()
+    self.materials[self.numoffs.number].name = material
+    self.materials[self.numoffs.number].set_texture(texture)
   def get_length(self):
     templength = 4 + 4 + 4 + self.numoffs.number * 4
     for x in range(self.numoffs.number):
@@ -1140,7 +1156,7 @@ class BRLYT_fnl1:
       tempOffset = tempOffset + len(self.fonts[x]) + 1
     for x in self.fonts:
       file.write(x)
-      file.write(struct.pack('>B', '\x00'))
+      file.write(struct.pack('s', '\x00'))
     return
 
 class BRLYT_txl1:
@@ -1216,6 +1232,12 @@ class BRLYT_lyt1:
     print "width: %f" % self.width
     print "height: %f" % self.height
     return
+  def get_texoffset(self, texture):
+    texoffset = -1
+    for x in range(len(self.textures)):
+      if self.textures[x] == texture:
+        texoffset = x - 1
+    return texoffset
   def get_length(self):
     self.length = 4 + 4 + 1 + 1 + 1 + 1 + 4 + 4
     return self.length
@@ -1299,10 +1321,18 @@ class BRLYT:
       file_offset = file_offset + self.tags[x].length
     self.tags_filled = self.chunks
     return
+  def get_texoffset(self, texture):
+    texoffset = self.tags[1].get_texoffset(texture)
+    return texofffset
   def add_material(self, material, texture):
+    texoffset = self.get_texoffset(texture)
+    if texoffset == -1:
+      print "texture not found in txl1"
+      return
     for x in range(self.tags_filled):
       if isinstance(self.tags[x], BRLYT_mat1):
-        self.tags[x].add_material()
+        self.tags[x].add_material(material, texoffset)
+    return
   def add_grp1(self):
     self.tags[self.tags_filled] = BRLYT_grp1()
     self.tags_filled = self.tags_filled + 1
@@ -1341,7 +1371,7 @@ class BRLYT:
   def write_brlyt(self, filename):
     templength = 4 + 4 + 4 + 2 + 2
     for x in range(self.tags_filled):
-      templength = self.tags[x].get_length()
+      templength = templength + self.tags[x].get_length()
     self.length = templength
     file = open(filename, 'wb')
     if file:
@@ -1368,7 +1398,7 @@ class BRLYT:
     return
 
 if len(sys.argv) != 2:
-    print 'Usage: python parse_brlyt.py <filename>'
+    print 'Usage: python brlyt.py <filename>'
     sys.exit(1)
 
 f = open(sys.argv[1], 'rb')
@@ -1381,9 +1411,9 @@ else:
 brlyt = BRLYT()
 brlyt.eat_brlyt(rlyt)
 brlyt.show_brlyt()
+brlyt.write_brlyt("testout.brlyt")
 
-#brlyt.write_brlyt("testout.brlyt")
-
+''' TEST FOR WRITING A BRLYT FROM SCRATCH ''' '''
 brlyt2 = BRLYT()
 brlyt2.add_lyt1()
 brlyt2.add_txl1()
@@ -1396,4 +1426,4 @@ brlyt2.add_pic1()
 brlyt2.add_pae1()
 brlyt2.add_grp1()
 brlyt2.write_brlyt("testout.brlyt")
-
+''' '''END TEST FOR BRLYT WRITING '''
