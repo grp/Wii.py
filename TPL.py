@@ -12,9 +12,9 @@ from common import *
 class TPL():
 	"""This is the class to generate TPL texutres from PNG images, and to convert TPL textures to PNG images. The parameter file specifies the filename of the source, either a PNG image or a TPL image.
 	
-	Currently supported are the following formats to convert from TPL: RGBA8, RGB565, RGB5A3, I4, I8, IA4, IA8. Currently not supported are: CI4, CI8, CMP.
+	Currently supported are the following formats to convert from TPL: RGBA8, RGB565, RGB5A3, CI4, CI8, I4, I8, IA4, IA8. Currently not supported are: CMP, CI14X2.
 	
-	Currently support to convert to TPL: RGBA8. Currently not supported are: RGB565, RGB5A3, I4, I8, IA4, IA8, CI4, CI8, CMP.
+	Currently support to convert to TPL: RGBA8. Currently not supported are: RGB565, RGB5A3, I4, I8, IA4, IA8, CI4, CI8, CMP, CI14X2.
 	
 	There are still some bugs in either the RGBA8 conversion to or from TPL. This causes stretched and distorted images with some files and images dimensions."""
 	
@@ -28,7 +28,7 @@ class TPL():
 		__endian__ = Struct.BE
 		def __format__(self):
 			self.header_offset = Struct.uint32
-			self.pallete_offset = Struct.uint32
+			self.palette_offset = Struct.uint32
 	class TPLTextureHeader(Struct):
 		__endian__ = Struct.BE
 		def __format__(self):
@@ -43,6 +43,14 @@ class TPL():
 			self.min_lod = Struct.uint8
 			self.max_lod = Struct.uint8
 			self.unpacked = Struct.uint8
+	class TPLPaletteHeader(Struct):
+		__endian__ = Struct.BE
+		def __format__(self):
+			self.nitems = Struct.uint16
+			self.unpacked = Struct.uint8
+			self.pad = Struct.uint8
+			self.format = Struct.uint32
+			self.offset = Struct.uint32
 	def __init__(self, file):
 		self.file = file
 	def toTPL(self, outfile, width = 0, height = 0): #single texture only
@@ -134,11 +142,15 @@ class TPL():
 		header.unpack(data[pos:pos + len(header)])
 		pos += len(header)
 		
+		palette_offsets = []
+		
 		for i in range(header.ntextures):
 			tmp = self.TPLTexture()
 			tmp.unpack(data[pos:pos + len(tmp)])
 			textures.append(tmp)
 			pos += len(tmp)
+			if(tmp.palette_offset > 0):
+				palette_offsets.append(tmp.palette_offset)
 		
 		if(header.ntextures > 1):
 			raise ValueError("Only one texture supported. Don't touch me!")
@@ -175,6 +187,44 @@ class TPL():
 				tpldata = struct.unpack(">" + str(w * h * 2) + "H", data[tex.data_off:tex.data_off + (w * h * 4)])
 				rgbdata = self.RGBA8((w, h), tpldata)
 				
+			elif(tex.format == 8 or tex.format == 9 or tex.format == 10):
+				palhead = self.TPLPaletteHeader()
+				offs = palette_offsets.pop(0)
+				palhead.unpack(data[offs:offs + len(palhead)])
+
+				tpldata = struct.unpack(">" + str(palhead.nitems) + "H", data[palhead.offset:palhead.offset + (palhead.nitems * 2)])
+				if(palhead.format == 0):
+					palette_data = self.IA8((palhead.nitems, 1), tpldata)[0]
+				elif(palhead.format == 1):
+					palette_data = self.RGB565((palhead.nitems, 1), tpldata)[0]
+				elif(palhead.format == 2):
+					palette_data = self.RGB5A3((palhead.nitems, 1), tpldata)[0]
+				
+				paldata = []
+				for i in range(0, palhead.nitems * 4, 4):
+					tmp = 0
+					tmp |= palette_data[i + 0] << 24
+					tmp |= palette_data[i + 1] << 16
+					tmp |= palette_data[i + 2] << 8
+					tmp |= palette_data[i + 3] << 0
+					paldata.append(tmp)
+				
+				if(tex.format == 8):
+					tpldata = struct.unpack(">" + str((w * h) / 2) + "B", data[tex.data_off:tex.data_off + ((w * h) / 2)])
+					rgbdata = self.CI4((w, h), tpldata, paldata)
+				if(tex.format == 9):
+					tpldata = struct.unpack(">" + str(w * h) + "B", data[tex.data_off:tex.data_off + (w * h * 1)])
+					rgbdata = self.CI8((w, h), tpldata, paldata)
+				if(tex.format == 10):
+					tpldata = struct.unpack(">" + str(w * h) + "H", data[tex.data_off:tex.data_off + (w * h * 2)])
+					rgbdata = self.CI14X2((w, h), tpldata, paldata)
+			elif(tex.format == 14):
+				sz = ((w + 7) >> 3) * ((w + 7) >> 3) * 32
+				print sz
+				print len(data[tex.data_off:])
+				tpldata = struct.unpack(">" + str(sz / 2) + "H", data[tex.data_off:tex.data_off + sz])
+				
+				rgbdata = self.CMP((w, h), tpldata)
 			else:
 				raise TypeError("Unsupported TPL Format: " + str(tex.format))
 		
@@ -403,4 +453,176 @@ class TPL():
 						out[y1][(x1 * 4) + 2] = b
 						out[y1][(x1 * 4) + 3] = a
 		return out
+	def CI4(self, (w, h), jar, pal):
+		out = [[0 for i in range(w * 4)] for i in range(h)]
+		i = 0
+		for y in range(0, h, 8):
+			for x in range(0, w, 8):
+				for y1 in range(y, y + 8):
+					for x1 in range(x, x + 8, 2):
+						if(y1 >= h or x1 >= w):
+							continue
+						pixel = jar[i]
+						
+						r = (pal[pixel] & 0xFF000000) >> 24
+						g = (pal[pixel] & 0x00FF0000) >> 16
+						b = (pal[pixel] & 0x0000FF00) >> 8
+						a = (pal[pixel] & 0x000000FF) >> 0
 
+						out[y1][(x1 * 4) + 0] = r
+						out[y1][(x1 * 4) + 1] = g
+						out[y1][(x1 * 4) + 2] = b
+						out[y1][(x1 * 4) + 3] = a
+						
+						if(y1 >= h or x1 >= w):
+							continue
+						pixel = jar[i]
+						i += 1
+						
+						r = (pal[pixel] & 0xFF000000) >> 24
+						g = (pal[pixel] & 0x00FF0000) >> 16
+						b = (pal[pixel] & 0x0000FF00) >> 8
+						a = (pal[pixel] & 0x000000FF) >> 0
+
+						out[y1][((x1 + 1) * 4) + 0] = r
+						out[y1][((x1 + 1) * 4) + 1] = g
+						out[y1][((x1 + 1) * 4) + 2] = b
+						out[y1][((x1 + 1) * 4) + 3] = a
+		return out
+	def CI8(self, (w, h), jar, pal):
+		out = [[0 for i in range(w * 4)] for i in range(h)]
+		i = 0
+		for y in range(0, h, 4):
+			for x in range(0, w, 8):
+				for y1 in range(y, y + 4):
+					for x1 in range(x, x + 8):
+						if(y1 >= h or x1 >= w):
+							continue
+						pixel = jar[i]
+						i += 1
+						
+						r = (pal[pixel] & 0xFF000000) >> 24
+						g = (pal[pixel] & 0x00FF0000) >> 16
+						b = (pal[pixel] & 0x0000FF00) >> 8
+						a = (pal[pixel] & 0x000000FF) >> 0
+
+						out[y1][(x1 * 4) + 0] = r
+						out[y1][(x1 * 4) + 1] = g
+						out[y1][(x1 * 4) + 2] = b
+						out[y1][(x1 * 4) + 3] = a
+		return out
+	def icolor(self, a, b, fa, fb, fc):
+		c = 0
+		for i in range(0, 32, 8):
+			xa = (a >> i) & 0xff
+			xb = (b >> i) & 0xff
+			xc = min(255, max(0, int((xa * fa + xb * fb) / fc)))
+			c |= xc << i
+		return c
+	def single565(self, pixel):
+		r = ((pixel >> 11) & 0x1F) << 3
+		g = ((pixel >> 5) & 0x3F) << 2
+		b = ((pixel >> 0) & 0x1F) << 3
+		a = 255
+		return (r << 24) | (g << 16) | (b << 8) | (a << 0)
+	def CMP(self, (w, h), jar):
+		out = [[0 for i in range(w * 4)] for i in range(h)]
+		
+		pos = 0
+		ofs = 0
+		
+		rgb = [0 for i in range(4)]
+		dst = [0 for i in range(w * h)]
+		for y in range(0, h, 8):
+			for x in range(0, w, 8):
+				maxw = min(w - x, 8)
+				for k in range(2):
+					for l in range(2):	
+						rgb[0] = self.single565(jar[pos])
+						pos += 1
+						rgb[1] = self.single565(jar[pos])
+						pos += 1
+
+						if(jar[pos + 0] > jar[pos + 1]):
+							rgb[2] = self.icolor(rgb[0], rgb[1], 2, 1, 3) | 0xFF000000
+							rgb[3] = self.icolor(rgb[1], rgb[0], 2, 1, 3) | 0xFF000000
+						else:
+							rgb[2] = self.icolor(rgb[0], rgb[1], 0.5, 0.5, 1) | 0xFF000000
+							#rgb[3] = self.icolor(rgb[1], rgb[0], 2, 1, 3) & ~0xFF000000
+							rgb[3] = 0
+							
+						# color selection (00, 01, 10, 11)
+						cm = jar[pos:pos + 2]
+						pixels = []
+						for pix in cm:
+							pixels.append(pix >> 8)
+							pixels.append(pix & 0xFF)
+						pos += 2
+						
+						for n in range(4):
+							# one row (4 texels)
+							if(ofs < (w * h)):
+								if(maxw > 0 + l * 4):
+									dst[ofs] = rgb[(pixels[n] & 0xc0) >> 6]
+									ofs += 1
+								if(maxw > 1 + l * 4):
+									dst[ofs] = rgb[(pixels[n] & 0x30) >> 4]
+									ofs += 1
+								if(maxw > 2 + l * 4):
+									dst[ofs] = rgb[(pixels[n] & 0x0c) >> 2]
+									ofs += 1
+								if(maxw > 3 + l * 4):
+									dst[ofs] = rgb[(pixels[n] & 0x03) >> 0]
+									ofs += 1
+
+		num_rows = 0
+		num_tiles = 0
+		for i in range(w * h):
+			pixel = dst[i]
+			
+			tile_offset = i % 16 # where are we in the tile?
+			if(i % 16 == 0 and i != 0): # if we are at the end of a tile...
+				num_tiles += 1 # ...move on to the next one!
+
+			if(num_tiles != 0 and (w / 4) == num_tiles): # if we are at the end of a row of tiles...
+				num_tiles = 0 # ...reset!
+				tile_offset = 0 # ...reset!
+				num_rows += 4 # plus four because each tile is four high
+				
+			x = (tile_offset % 4) + (num_tiles * 4) # num_tiles part to not overwrite tiles earlier in this row, tile_offset to find how far on the x we are in this row in the tile
+			y = (num_rows) + (tile_offset / 4) # num_rows to not overwrite tiles above, tile_offset to show how many rows in the current tile we are
+			
+			#print "tile %u of %u on row %u of %u (%u, %u): 0x%08x" % (num_tiles + 1, w / 4, (num_rows / 4) + 1, h / 4, x, y, pixel)
+			
+			r = (pixel & 0xFF000000) >> 24
+			g = (pixel & 0x00FF0000) >> 16
+			b = (pixel & 0x0000FF00) >> 8
+			a = (pixel & 0x000000FF) >> 0
+		
+			out[y][(x * 4) + 0] = r
+			out[y][(x * 4) + 1] = g
+			out[y][(x * 4) + 2] = b
+			out[y][(x * 4) + 3] = a		
+		return out
+	def CI14X2(self, (w, h), jar):
+		out = [[0 for i in range(w * 4)] for i in range(h)]
+		i = 0
+		for y in range(0, h, 4):
+			for x in range(0, w, 4):
+				for y1 in range(y, y + 4):
+					for x1 in range(x, x + 4):
+						if(y1 >= h or x1 >= w):
+							continue
+						pixel = jar[i]
+						i += 1
+						
+						r = (pal[pixel & 0x3FFF] & 0xFF000000) >> 24
+						g = (pal[pixel & 0x3FFF] & 0x00FF0000) >> 16
+						b = (pal[pixel & 0x3FFF] & 0x0000FF00) >> 8
+						a = (pal[pixel & 0x3FFF] & 0x000000FF) >> 0
+
+						out[y1][(x1 * 4) + 0] = r
+						out[y1][(x1 * 4) + 1] = g
+						out[y1][(x1 * 4) + 2] = b
+						out[y1][(x1 * 4) + 3] = a
+		return out
