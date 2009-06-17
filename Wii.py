@@ -2,6 +2,7 @@ __all__ = []
 
 from compression import *
 from savedata import *
+from banner import *
 from disc import *
 from nand import *
 from title import *
