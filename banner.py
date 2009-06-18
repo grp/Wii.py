@@ -727,12 +727,12 @@ class BRLYT_txt1:
   def eat_tag(self, file, offset):
     self.magic, self.length = struct.unpack('>4sI', file[offset:offset+8])
     self.pane.eat_pane(file, offset+8)
-    self.len1, self.len2, self.mat_off, self.font = struct.unpack('>HHHH', file[offset+0x08:offset+0x08+8])
-    self.unknown, self.padding1, self.padding2, self.padding3 = struct.unpack('>BBBB', file[offset+0x10:offset+0x10+4])
-    self.name_offs, self.color1, self.color2 = struct.unpack('>III', file[offset+0x14:offset+0x14+12])
-    self.font_size_x, self.font_size_y = struct.unpack('>ff', file[offset+0x20:offset+0x20+8])
-    self.char_space, self.line_space = struct.unpack('>ff', file[offset+0x28:offset+0x28+8])
-    text = file[offset+0x30:offset+0x30+self.len2]
+    self.len1, self.len2, self.mat_off, self.font = struct.unpack('>HHHH', file[offset+0x4C:offset+0x4C+8])
+    self.unknown, self.padding1, self.padding2, self.padding3 = struct.unpack('>BBBB', file[offset+0x54:offset+0x54+4])
+    self.name_offs, self.color1, self.color2 = struct.unpack('>III', file[offset+0x58:offset+0x58+12])
+    self.font_size_x, self.font_size_y = struct.unpack('>ff', file[offset+0x64:offset+0x64+8])
+    self.char_space, self.line_space = struct.unpack('>ff', file[offset+0x6C:offset+0x6C+8])
+    text = file[offset+0x74:offset+0x74+self.len2]
     self.text = unicode(text, 'utf_16_be').rstrip('\x00')
     return
   def show_tag(self):
@@ -1099,7 +1099,7 @@ class BRLYT_mat1:
     file.write(self.magic)
     file.write(struct.pack('>I', self.length))
     self.numoffs.write_to_file(file)
-    tempOffset = self.numoffs.number * 4
+    tempOffset = self.numoffs.number * 4 + 0xC
     for x in range(self.numoffs.number):
       file.write(struct.pack('>I', tempOffset))
       #self.offsets[x] = tempOffset
