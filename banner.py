@@ -1114,6 +1114,7 @@ class BRLYT_fnl1:
     self.numoffs = BRLYT_Numoffs()
     self.offsets = []
     self.fonts = []
+    self.padding_to_add = 0
   def eat_tag(self, file, offset):
     self.magic, self.length = struct.unpack('>4sI', file[offset:offset+8])
     self.numoffs.eat_numoffs(file, offset+8)
@@ -1144,19 +1145,26 @@ class BRLYT_fnl1:
     for x in self.fonts:
       templength = templength + len(x) + 1
     self.length = templength
+    self.padding_to_add = 4 - (self.length % 4)
+    self.padding_to_add = self.padding_to_add % 4
+    self.length = self.length + self.padding_to_add
     return self.length
   def write_to_file(self, file):
     file.write(self.magic)
     file.write(struct.pack('>I', self.length))
     self.numoffs.write_to_file(file)
     tempOffset = self.numoffs.number * 4
+    unknown = 0x00000000
     for x in range(len(self.offsets)):
       file.write(struct.pack('>I', tempOffset))
+      file.write(struct.pack('>I', unknown))
       self.offsets[x] = tempOffset
       tempOffset = tempOffset + len(self.fonts[x]) + 1
     for x in self.fonts:
       file.write(x)
       file.write(struct.pack('s', '\x00'))
+    for x in range(self.padding_to_add):
+      file.write(struct.pack('s', "\0"))
     return
 
 class BRLYT_txl1:
@@ -1165,6 +1173,7 @@ class BRLYT_txl1:
     self.numoffs = BRLYT_Numoffs()
     self.offsets = []
     self.textures = []
+    self.padding_to_add = 0
   def eat_tag(self, file, offset):
     self.magic, self.length = struct.unpack('>4sI', file[offset:offset+8])
     self.numoffs.eat_numoffs(file, offset+8)
@@ -1195,18 +1204,25 @@ class BRLYT_txl1:
     for x in self.textures:
       templength = templength + len(x) + 1
     self.length = templength
+    self.padding_to_add = 4 - (self.length % 4)
+    self.padding_to_add = self.padding_to_add % 4
+    self.length = self.length + self.padding_to_add
     return self.length
   def write_to_file(self, file):
     file.write(self.magic)
     file.write(struct.pack('>I', self.length))
     self.numoffs.write_to_file(file)
-    tempOffset = self.numoffs.number * 4
+    tempOffset = self.numoffs.number * 8
+    unknown = 0x00000000
     for x in range(len(self.offsets)):
       file.write(struct.pack('>I', tempOffset))
+      file.write(struct.pack('>I', unknown))
       self.offsets[x] = tempOffset
       tempOffset = tempOffset + len(self.textures[x]) + 1
     for x in self.textures:
       file.write(x)
+      file.write(struct.pack('s', "\0"))
+    for x in range(self.padding_to_add):
       file.write(struct.pack('s', "\0"))
     return
 
@@ -1368,11 +1384,13 @@ class BRLYT:
   def add_font(self, font):
     self.tags[2].add_font(font)
     return
-  def write_brlyt(self, filename):
+  def get_length(self):
     templength = 4 + 4 + 4 + 2 + 2
-    for x in range(self.tags_filled):
+    for x in range(len(self.tags)):
       templength = templength + self.tags[x].get_length()
     self.length = templength
+  def write_brlyt(self, filename):
+    self.get_length()
     file = open(filename, 'wb')
     if file:
       file.write(self.magic)
@@ -1397,10 +1415,342 @@ class BRLYT:
       print
     return
 
+class BRLAN_TagData:
+  def __init__(self):
+    self.part1 = 0x0
+    self.part2 = 0x0
+    self.part3 = 0x0
+  def eat_tagdata(self, file, offset):
+    pass
+  def get_length(self):
+    pass
+  def write_to_file(self, file):
+    pass
+
+class BRLAN_TagDataTriplet(BRLAN_TagData):
+  def eat_tagdata(self, file, offset):
+    self.part1, self.part2, self.part3 = struct.unpack('>fff', file[offset:offset+12])
+    return
+  def show_tagdata(self):
+    print "Frame: %f" % self.part1
+    print "Value: %f" % self.part2
+    print "Blend: %f" % self.part3
+    return
+  def get_length(self):
+    templength = 4 + 4 + 4
+    return templength
+  def write_to_file(self, file):
+    file.write(struct.pack('>f', self.part1))
+    file.write(struct.pack('>f', self.part2))
+    file.write(struct.pack('>f', self.part3))
+    return
+
+class BRLAN_TagDataPair(BRLAN_TagData):
+  def eat_tagdata(self, file, offset):
+    self.part1, self.part2, self.part3 = struct.unpack('>IHH', file[offset:offset+8])
+    return
+  def show_tagdata(self):
+    print "Pair 1: %08x" % self.part1
+    print "Pair 2: %04x" % self.part2
+    print "Padding: %04x" % self.part3
+    return
+  def get_length(self):
+    templength = 4 + 2 + 2
+    return templength
+  def write_to_file(self, file):
+    file.write(struct.pack('>I', self.part1))
+    file.write(struct.pack('>H', self.part2))
+    file.write(struct.pack('>H', self.part3))
+    return
+
+class BRLAN_TagEntryInfo:
+  def __init__(self):
+    self.type = 0x0000
+    self.data_type = 0x0020 # 0x20 is triplet 0x10 is pair
+    self.coord_count = 0x0000
+    self.pad1 = 0x0000
+    self.unknown = 0x0000000C
+    self.tag_data = { }
+  def eat_tagentryinfo(self, file, offset):
+    file_offset = offset
+    self.type, self.data_type, self.coord_count, self.pad1, self.unknown = struct.unpack('>HHHHI', file[offset:offset+12])
+    file_offset = file_offset + 12
+    for x in range(self.coord_count):
+      if self.data_type == 0x0200:
+        self.tag_data[x] = BRLAN_TagDataTriplet()
+        self.tag_data[x].eat_tagdata(file, file_offset)
+        file_offset = file_offset + 12
+      elif self.data_type == 0x0100:
+        self.tag_data[x] = BRLAN_TagDataPair()
+        self.tag_data[x].eat_tagdata(file, file_offset)
+        file_offset = file_offset + 8
+    return
+  def show_tagentryinfo(self):
+    print "Type: %04x" % self.type
+    print "Data Type: %04x" % self.data_type
+    print "Coordinate Count: %04x" % self.coord_count
+    print "Padding: %04x" % self.pad1
+    print "Unknown: %08x" % self.unknown
+    for x in range(len(self.tag_data)):
+      self.tag_data[x].show_tagdata()
+    return
+  def get_length(self):
+    templength = 2 + 2 + 2 + 2 + 4
+    for x in range(len(self.tag_data)):
+      templength = templength + self.tag_data[x].get_length()
+    return templength
+  def write_to_file(self, file):
+    file.write(struct.pack('>H', self.type))
+    file.write(struct.pack('>H', self.data_type))
+    file.write(struct.pack('>H', self.coord_count))
+    file.write(struct.pack('>H', self.pad1))
+    file.write(struct.pack('>I', self.unknown))
+    for x in range(len(self.tag_data)):
+      self.tag_data[x].write_to_file(file)
+    return
+
+class BRLAN_TagHeader:
+  def __init__(self):
+    self.magic = "RLPA"
+    self.entry_count = 0x00
+    self.pad1 = 0x00
+    self.pad2 = 0x00
+    self.pad3 = 0x00
+    self.tag_entry_offsets = []
+    self.tag_entries = { }
+  def eat_tagheader(self, file, offset):
+    self.magic, self.entry_count, self.pad1, self.pad2, self.pad3 = struct.unpack('>4sBBBB', file[offset:offset+8])
+    for x in range(self.entry_count):
+      dummy, offs = struct.unpack('>II', file[offset+8+x*4-4:offset+8+x*4+4])
+      self.tag_entry_offsets.append(offs)
+      self.tag_entries[x] = BRLAN_TagEntryInfo()
+      self.tag_entries[x].eat_tagentryinfo(file, offset+self.tag_entry_offsets[x])
+    return
+  def show_tagheader(self):
+    print "Magic: %s" % self.magic
+    print "Entry Count: %02x" % self.entry_count
+    print "Padding: %02x %02x %02x" % ( self.pad1 , self.pad2 , self.pad3 )
+    for x in range(self.entry_count):
+      print "Offset: %08x" % self.tag_entry_offsets[x]
+      self.tag_entries[x].show_tagentryinfo()
+    return
+  def get_length(self):
+    templength = 4 + 1 + 1 + 1 + 1
+    templength = templength + self.entry_count * 4
+    for x in range(self.entry_count):
+      templength = templength + self.tag_entries[x].get_length()
+    return templength
+  def write_to_file(self, file):
+    file.write(struct.pack('>4s', self.magic))
+    file.write(struct.pack('>B', self.entry_count))
+    file.write(struct.pack('>B', self.pad1))
+    file.write(struct.pack('>B', self.pad2))
+    file.write(struct.pack('>B', self.pad3))
+    for x in range(self.entry_count):
+      file.write(struct.pack('>I', self.tag_entry_offsets[x]))
+    for x in range(self.entry_count):
+      self.tag_entries[x].write_to_file(file)
+    return
+
+class BRLAN_entry():
+  def __init__(self):
+    self.name =  "name"
+    self.num_tags = 0x00
+    self.is_material = 0x00
+    self.pad1 = 0x00
+    self.pad2 = 0x00
+    self.tag_offsets = []
+    self.tags = { }
+  def eat_entry(self, file, offset):
+    file_offset = offset
+    self.name, self.num_tags, self.is_material, self.pad1, self.pad2 = struct.unpack('>20sBBBB', file[offset:offset+24])
+    file_offset = file_offset + 24
+    for x in range(self.num_tags):
+      dummy, offs = struct.unpack('>II', file[offset+24+x*4-4:offset+24+x*4+4])
+      self.tag_offsets.append(offs)
+      self.tags[x] = BRLAN_TagHeader()
+      self.tags[x].eat_tagheader(file, offset+self.tag_offsets[x])
+    return
+  def show_entry(self):
+    print "Name: %s" % nullterm(self.name)
+    print "Number of Tags: %02x" % self.num_tags
+    print "Is a Material: %02x" % self.is_material
+    print "Padding: %02x %02x" % ( self.pad1, self.pad2 )
+    for x in range(self.num_tags):
+      self.tags[x].show_tagheader()
+    return
+  def get_length(self):
+    templength = 20 + 1 + 1 + 1 + 1
+    for x in range(self.num_tags):
+      templength = templength + 4 + self.tags[x].get_length()
+    return templength
+  def write_to_file(self, file):
+    file.write(struct.pack('>20s', self.name))
+    file.write(struct.pack('>B', self.num_tags))
+    file.write(struct.pack('>B', self.is_material))
+    file.write(struct.pack('>B', self.pad1))
+    file.write(struct.pack('>B', self.pad2))
+    for x in range(self.num_tags):
+      file.write(struct.pack('>I', self.tag_offsets[x]))
+    for x in range(self.num_tags):
+      self.tags[x].write_to_file(file)
+    return
+
+class BRLAN_pai1():
+  def __init__(self):
+    self.magic = "pai1"
+    self.length = 0x00000000
+    self.framesize = 0x0000
+    self.flags = 0x00
+    self.unknown = 0x00
+    self.num_timgs = 0x0000
+    self.num_entries = 0x0000
+    self.entry_offset = 0x00000000
+    self.timg_offsets = []
+    self.timgs = []
+    self.entry_offsets = []
+    self.entries = { }
+  def eat_pai1(self, file, offset):
+    file_offset = offset
+    self.magic, self.length = struct.unpack('>4sI', file[offset:offset+8])
+    self.framesize, self.flags, self.unknown = struct.unpack('>HBB', file[offset+0x08:offset+0x08+4])
+    self.num_timgs, self.num_entries = struct.unpack('>HH', file[offset+0x0C:offset+0x0C+4])
+    file_offset = file_offset + 0x10
+    if bit_extract(self.flags, 25):
+      self.unknown2, self.entry_offset = struct.unpack('>II', file[offset+0x10:offset+0x10+8])
+      file_offset = file_offset + 8
+    else:
+      dummy, self.entry_offset = struct.unpack('>II', file[offset+0x10-4:offset+0x10+4])
+      file_offset = file_offset + 4
+    for x in range(self.num_timgs):
+      dummy, offs = struct.unpack('>II', file[file_offset+x*4-4:file_offset+x*4+4])
+      self.timg_offsets.append(offs)
+      name = nullterm(file[file_offset+self.timg_offsets[x]:])
+      self.timgs.append(name)
+    for x in range(self.num_entries):
+      dummy, offs = struct.unpack('>II', file[offset+self.entry_offset+x*4-4:offset+self.entry_offset+x*4+4])
+      self.entry_offsets.append(offs)
+      self.entries[x] = BRLAN_entry()
+      self.entries[x].eat_entry(file, offset+self.entry_offsets[x])
+    return
+  def show_pai1(self):
+    print "Magic: %s" % self.magic
+    print "Length: %08x" % self.length
+    print "Framesize: %04x" % self.framesize
+    print "Flags: %02x" % self.flags
+    print "Unknown: %02x" % self.unknown
+    print "Number of Images: %04x" % self.num_timgs
+    print "Number of Entries: %04x" % self.num_entries
+    if bit_extract(self.flags, 25):
+      print "Unknown2: %08x" % self.unknown2
+    print "Entry Offset: %08x" %  self.entry_offset
+    for x in range(len(self.timgs)):
+      print "Image: %s offset: %08x" % ( self.timgs[x] , self.offsets[x] )
+    for x in range(len(self.entry_offsets)):
+      print "Offset: %08x" % self.entry_offsets[x]
+      self.entries[x].show_entry()
+    return
+  def get_length(self):
+    templength = 4 + 4 + 2 + 1 + 1 + 2 + 2
+    if bit_extract(self.flags, 25):
+      templength = templength + 4
+    templength = templength + 4
+    templegnth = templength + self.num_timgs * 4
+    for x in range(self.num_timgs):
+      templength = templength + len(self.timgs[x]) + 1
+    templength = templength + self.num_entries * 4
+    for x in range(self.num_entries):
+      templength = templength + self.entries[x].get_length()
+    self.length = templength
+    return templength
+  def write_to_file(self, file):
+    file.write(self.magic)
+    file.write(struct.pack('>I', self.length))
+    file.write(struct.pack('>H', self.framesize))
+    file.write(struct.pack('>B', self.flags))
+    file.write(struct.pack('>B', self.unknown))
+    file.write(struct.pack('>H', self.num_timgs))
+    file.write(struct.pack('>H', self.num_entries))
+    if bit_extract(self.flags, 25):
+      file.write(struct.pack('>I', self.unknown2))
+    file.write(struct.pack('>I', self.entry_offset))
+    tempOffset = self.num_timgs * 4 + self.entry_offset
+    for x in range(len(self.timgs)):
+      file.write(struct.pack('>I', tempOffset))
+      self.timg_offsets[x] = tempOffset
+      tempOffset = tempOffset + len(self.timgs[x]) + 1
+    for x in self.timgs:
+      file.write(x)
+      file.write(struct.pack('s', '\x00'))
+    tempOffset = self.num_entries * 4 + self.entry_offset
+    for x in range(len(self.entry_offsets)):
+      file.write(struct.pack('>I', tempOffset))
+      self.entry_offsets[x] = tempOffset
+      tempOffset = tempOffset + self.entries[x].get_length()
+    for x in range(self.num_entries):
+      self.entries[x].write_to_file(file)
+    return
+
+class BRLAN:
+  def __init__(self):
+    self.magic = "RLAN"
+    self.version = 0xfeff0008
+    self.length = 0x00000000
+    self.offset = 0x0010
+    self.chunks = 0x0001
+    self.pai1 = BRLAN_pai1()
+  def eat_brlan(self, file):
+    self.magic, self.version, self.length = struct.unpack('>4sII', file[0x00:0x00+12])
+    self.offset, self.chunks = struct.unpack('>HH', file[0x0c:0x0c+4])
+    self.pai1.eat_pai1(file, self.offset)
+    return
+  def show_brlan(self):
+    print "Magic: %s" % self.magic
+    print "Version: %08x" % self.version
+    print "File Size: %08x" % self.length
+    print "Header Size: %04x" % self.offset
+    print "Chunk Count: %04x" % self.chunks
+    self.pai1.show_pai1()
+    return
+  def get_length(self):
+    templength = 4 + 4 + 4 + 2 + 2
+    templength = templength + self.pai1.get_length()
+    self.length = templength
+    return self.templength
+  def write_brlan(self, filename):
+    self.get_length()
+    file = open(filename, 'wb')
+    if file:
+      file.write(self.magic)
+      file.write(struct.pack('>I', self.version))
+      file.write(struct.pack('>I', self.length))
+      file.write(struct.pack('>H', self.offset))
+      file.write(struct.pack('>H', self.chunks))
+      self.pai1.write_to_file(file)
+      file.close()
+    else:
+      print "could now open file for writing"
+    return
+
 if len(sys.argv) != 2:
-    print 'Usage: python brlyt.py <filename>'
+    print 'Usage: python banner.py <filename>'
     sys.exit(1)
 
+''' START BRLAN READING TEST ''' '''
+f = open(sys.argv[1], 'rb')
+if f:
+  rlan = f.read()
+  f.close()
+else:
+  print "could not open file for reading"
+
+brlan = BRLAN()
+brlan.eat_brlan(rlan)
+brlan.show_brlan()
+brlan.write_brlan("testout.brlan")
+''' ''' END BRLAN READING TEST '''
+
+''' START BRLYT READING TEST ''' #'''
 f = open(sys.argv[1], 'rb')
 if f:
     rlyt = f.read()
@@ -1412,6 +1762,8 @@ brlyt = BRLYT()
 brlyt.eat_brlyt(rlyt)
 brlyt.show_brlyt()
 brlyt.write_brlyt("testout.brlyt")
+#''' ''' END BRLYT READING TEST '''
+
 
 ''' TEST FOR WRITING A BRLYT FROM SCRATCH ''' '''
 brlyt2 = BRLYT()
