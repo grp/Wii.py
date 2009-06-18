@@ -165,12 +165,12 @@ class WOD: #WiiOpticalDisc
 			blob += self.decryptBlock(self.fp.read(0x8000))
 		
 		print 'Read from 0x%x to 0x%x' % (offset, offset + size)   
-
+    offset -= readStart * 0x7C00
 		return blob[offset:offset + size]
 
 	def getFst(self):
 		#print 'Fst dump : %s' % hexdump(self.readPartition(self.fstOffset, self.fstSize))
-		return self.readPartition(0x3020, 12320)
+		return self.readPartition(self.fstOffset, self.fstSize)
 		
 	def getIsoBootmode(self):
 		if self.discHdr.discId == 'R' or self.discHdr.discId == '_':
