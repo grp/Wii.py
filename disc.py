@@ -147,10 +147,8 @@ class WOD: #WiiOpticalDisc
 		self.partitionHdr = self.discHeader().unpack(self.readPartition (0x0, 0x400))
 
 	def readPartition(self, offset, size):
-		if size > 0x8000:
-			pass#raise Exception('To be implemented')
 		
-		readBlocks = size / 0x8000
+		readBlocks = 1 + align(size, 0x7C00) / 0x7C00
 		blockToRead = offset / 0x8000
 		blob = ''
 			
@@ -166,6 +164,10 @@ class WOD: #WiiOpticalDisc
 		
 		print 'Read from 0x%x to 0x%x' % (offset, offset + size) 	
 		return blob[offset:offset + size]
+		
+	def getFst(self):
+		print 'DUMP %s' % hexdump(self.readPartition(self.fstOffset, self.fstSize))
+		return self.readPartition(self.fstOffset, self.fstSize)
 		
 	def getIsoBootmode(self):
 		if self.discHdr.discId == 'R' or self.discHdr.discId == '_':
@@ -205,7 +207,7 @@ class WOD: #WiiOpticalDisc
 		return self.fp.read(0x2A4)
 		
 	def getPartitionApploader(self):
-		return self.readPartition (0x2460, self.appLdr.size + self.appLdr.trailingSize)
+		return self.readPartition (0x2440, self.appLdr.size + self.appLdr.trailingSize + 32)
 
 	def extractPartition(self, index, fn = ""):
 
