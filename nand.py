@@ -1,9 +1,11 @@
 import os, hashlib, struct, subprocess, fnmatch, shutil, urllib, array
 import wx
 import png
+from binascii import *
 
 from Crypto.Cipher import AES
 from Struct import Struct
+from struct import *
 
 from common import *
 from title import *
@@ -11,6 +13,12 @@ from title import *
 
 class NAND:
 	"""This class performs all NAND related things. It includes functions to copy a title (given the TMD) into the correct structure as the Wii does, and will eventually have an entire ES-like system. Parameter f to the initializer is the folder that will be used as the NAND root."""
+	class UIDSYS(Struct):
+		__endian__ = Struct.BE
+		def __format__(self):
+			self.titleid = Struct.uint64
+			self.padding = Struct.uint16
+			self.uid = Struct.uint16
 	def __init__(self, f):
 		self.f = f
 		self.ES = ESClass(self)
@@ -35,13 +43,78 @@ class NAND:
 		if(not os.path.isfile(f + "/sys/space.sys")):
 			open(f + "/sys/space.sys", "wb").close()
 		if(not os.path.isfile(f + "/sys/uid.sys")):
-			open(f + "/sys/uid.sys", "wb").close()
+			uidfp = open(f + "/sys/uid.sys", "wb")
+			uiddat = self.UIDSYS()
+			uiddat.titleid = 0x0000000100000002
+			uiddat.padding = 0
+			uiddat.uid = 0x1000
+			uidfp.write(uiddat.pack())
+			uidfp.close()
 		if(not os.path.isdir(f + "/ticket")):
 			os.mkdir(f + "/ticket")
 		if(not os.path.isdir(f + "/title")):
 			os.mkdir(f + "/title")
 		if(not os.path.isdir(f + "/tmp")):
 			os.mkdir(f + "/tmp")
+	def getUIDForTitle(self, title):
+		uidfp = open(self.f + "/sys/uid.sys", "rb")
+		uiddat = uidfp.read()
+		cnt = len(uiddat) / 12
+		uidfp.seek(0)
+		uidstr = self.UIDSYS()
+		uidict = {}
+		for i in range(cnt):
+			uidstr.titleid = uidfp.read(8)
+			uidstr.padding = uidfp.read(2)
+			uidstr.uid = uidfp.read(2)
+			uidict[uidstr.titleid] = uidstr.uid
+		for key, value in uidict.iteritems():
+			if(hexdump(key, "") == ("%016X" % title)):
+				return value
+		return None
+	def getTitleForUID(self, uid):
+		uidfp = open(self.f + "/sys/uid.sys", "rb")
+		uiddat = uidfp.read()
+		cnt = len(uiddat) / 12
+		uidfp.seek(0)
+		uidstr = self.UIDSYS()
+		uidict = {}
+		for i in range(cnt):
+			uidstr.titleid = uidfp.read(8)
+			uidstr.padding = uidfp.read(2)
+			uidstr.uid = uidfp.read(2)
+			uidict[uidstr.titleid] = uidstr.uid
+		for key, value in uidict.iteritems():
+			if(hexdump(value, "") == ("%04X" % uid)):
+				return key
+		return None
+	def addTitleToUID(self, title):
+		uidfp = open(self.f + "/sys/uid.sys", "rb")
+		uiddat = uidfp.read()
+		cnt = len(uiddat) / 12
+		uidfp.seek(0)
+		uidstr = self.UIDSYS()
+		uidict = {}
+		enduid = "\x10\x01"
+		for i in range(cnt):
+			uidstr.titleid = uidfp.read(8)
+			uidstr.padding = uidfp.read(2)
+			uidstr.uid = uidfp.read(2)
+			if(hexdump(uidstr.titleid, "") == ("%016X" % title)):
+				uidfp.close()
+				return uidstr.uid
+			if(unpack(">H", uidstr.uid) >= unpack(">H", enduid)):
+				enduid = a2b_hex("%04X" % (unpack(">H", uidstr.uid)[0] + 1))
+			uidict[uidstr.titleid] = uidstr.uid
+		uidict[a2b_hex("%016X" % title)] = enduid
+		uidfp.close()
+		uidfp = open(self.f + "/sys/uid.sys", "wb")
+		for key, value in uidict.iteritems():
+			uidfp.write(key)
+			uidfp.write("\0\0")
+			uidfp.write(value)
+		uidfp.close()
+		return enduid
 	def contentByHash(self, hash):
 		"""When passed a sha1 hash (string of length 20), this will return the path name (including the NAND FS prefix) to the shared content specified by the hash in content.map. Note that if the content is not found, it will return False - not an empty string."""
 		cmfp = open(self.f + "/shared1/content.map", "rb")
@@ -280,6 +353,7 @@ class ESClass:
 			fp.close()
 			outfp.write(tmpdata)
 			outfp.close()
+		self.nand.addTitleToUID(self.wtitleid)
 		if(self.tmdadded and self.use_version):
 			tmd.rawdump(self.f + "/title/%08x/%08x/content/title.tmd.%d" % (self.wtitleid >> 32, self.wtitleid & 0xFFFFFFFF, tmd.tmd.title_version))
 		elif(self.tmdadded):
