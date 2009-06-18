@@ -2,6 +2,7 @@ import os, hashlib, struct, subprocess, fnmatch, shutil, urllib, array
 import wx
 import png
 
+import time
 from title import *
 from Crypto.Cipher import AES
 from Struct import Struct
@@ -127,6 +128,11 @@ class WOD: #WiiOpticalDisc
 		self.tikData = self.fp.read(0x2A4)
 		self.partitionKey = Ticket(self.tikData).getTitleKey()
 		
+		self.appLdr = self.Apploader().unpack(self.readPartition (0x2440, 32))
+		self.partitionHdr = self.discHeader().unpack(self.readPartition (0x0, 0x400))
+
+		self.fp.seek(self.partitionOffset + 0x2a4)
+
 		self.tmdSize = struct.unpack(">I", self.fp.read(4))[0]
 		self.tmdOffset = struct.unpack(">I", self.fp.read(4))[0] >> 2
 		
@@ -143,31 +149,28 @@ class WOD: #WiiOpticalDisc
 		self.fstOffset = 4 * struct.unpack(">I", self.readPartition (0x424, 4))[0]
 		self.fstSize = 4 * struct.unpack(">I", self.readPartition (0x428, 4))[0]
 		
-		self.appLdr = self.Apploader().unpack(self.readPartition (0x2440, 32))
-		self.partitionHdr = self.discHeader().unpack(self.readPartition (0x0, 0x400))
-
 	def readPartition(self, offset, size):
 		
-		readBlocks = 1 + align(size, 0x7C00) / 0x7C00
-		blockToRead = offset / 0x8000
+		readStart = offset / 0x7C00
+		readLen = (align(size, 0x7C00)) / 0x7C00
 		blob = ''
-			
-		print 'Read at 0x%x for %i bytes' % (offset, size)
-		print 'Going to read %i blocks' % readBlocks
+		  
+		print 'Read at 0x%x (Start on %i block, ends at %i block) for %i bytes' % (offset, readStart, readStart + readLen, size)
 		
-		self.fp.seek(self.partitionOffset + 0x20000 + (0x8000 * blockToRead))
-		if readBlocks == 0:
-			blob += self.decryptBlock(self.fp.read(0x8000))
+		self.fp.seek(self.partitionOffset + 0x20000 + (0x8000 * readStart))
+		if readLen == 0:
+		  blob += self.decryptBlock(self.fp.read(0x8000))
 		else:
-			for x in range(readBlocks):
-				blob += self.decryptBlock(self.fp.read(0x8000))
+		  for x in range(readLen + 1):
+			blob += self.decryptBlock(self.fp.read(0x8000))
 		
-		print 'Read from 0x%x to 0x%x' % (offset, offset + size) 	
+		print 'Read from 0x%x to 0x%x' % (offset, offset + size)   
+
 		return blob[offset:offset + size]
-		
+
 	def getFst(self):
-		print 'DUMP %s' % hexdump(self.readPartition(self.fstOffset, self.fstSize))
-		return self.readPartition(self.fstOffset, self.fstSize)
+		#print 'Fst dump : %s' % hexdump(self.readPartition(self.fstOffset, self.fstSize))
+		return self.readPartition(0x3020, 12320)
 		
 	def getIsoBootmode(self):
 		if self.discHdr.discId == 'R' or self.discHdr.discId == '_':
