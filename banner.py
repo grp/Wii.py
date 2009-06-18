@@ -1779,3 +1779,8 @@ brlyt2.add_pae1()
 brlyt2.add_grp1()
 brlyt2.write_brlyt("testout.brlyt")
 ''' '''END TEST FOR BRLYT WRITING '''
+
+''' T O D O ''' '''
+fix txt1 text output
+add brlan making methods
+'''
