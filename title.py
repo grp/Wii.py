@@ -107,8 +107,7 @@ class Ticket:
 			open(fn, "wb").write(self.tik.pack())
 			return fn
 	def __len__(self):
-		sz = len(self.tik)
-		return sz
+		return len(self.tik)
 
 class TMD:
 	"""This class allows you to edit TMDs. TMD (Title Metadata) files are used in many places to hold information about titles. The parameter f to the initialization is the filename to open and create a TMD from."""
