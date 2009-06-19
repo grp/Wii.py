@@ -113,7 +113,7 @@ class Savegame():
 		ret += 'Total size : %i bytes\n' % self.bkHdr.totalSize
 		
 		return ret
-		
+
 	def extractFiles(self):
 
 		try:
@@ -173,7 +173,7 @@ class Savegame():
 			print 'File IV : 0x%s' % hexdump(fileIV, '')
 			
 		os.chdir('..')
-					
+		
 	def analyzeHeader(self):
 		headerBuffer = self.fd.read(0xF0C0)
 		headerBuffer = Crypto().DecryptData(self.sdKey, self.sdIv, headerBuffer, True)
@@ -201,7 +201,7 @@ class Savegame():
 		self.fileStartOffset = self.fd.tell()
 		
 	def getBanner(self):
-		open('bnr.bin', 'w+b').write(struct.pack('24576I', *self.bnr.banner))
+		return struct.pack('24576I', *self.bnr.banner)
 		
 	def getIcon(self, index):
 		if index < 0 or index > 7 or index > self.iconCount:
@@ -223,6 +223,9 @@ class Savegame():
 		if index == 7:
 			return self.bnr.icon7
 		
+	def eraseWiiMac(self):
+		self.fd.seek(0xF128)
+		print self.fd.write('\x00' * 6)
 		
 	def getIconsCount(self):
 		return self.iconCount

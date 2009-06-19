@@ -13,9 +13,12 @@ from common import *
 class WOD: #WiiOpticalDisc
 	class fsentry:
 		name = ""
+		type = 0
 		parent = None
+		offset = 0
+		lenght = 0
 		
-		def __init__(self, name, parent):
+		def __init__(self, name, type, parent, offset, len):
 			self.name = ""
 			if(parent != None):
 				self.parent = parent
@@ -46,7 +49,20 @@ class WOD: #WiiOpticalDisc
 			self.title = Struct.string(64)
 			self.hashVerify = Struct.uint8
 			self.h3verify = Struct.uint8
+		def __str__(self):
+			ret = ''
+			ret += '%s [%s%s%s]\n' % (self.title, self.discId, self.gameCode, self.region)
+			if self.region == 'P':
+				ret += 'Region : PAL\n'
+			elif self.region == 'E':
+				ret += 'Region : NTSC\n'
+			elif self.region == 'J':
+				ret += 'Region : JPN\n'
+			ret += 'Version 0x%x Maker %i%i Audio streaming %x\n' % (self.version, self.makerCode[0], self.makerCode[1], self.audioStreaming)
+			ret += 'Hash verify flag 0x%x H3 verify flag : 0x%x\n' % (self.hashVerify, self.h3verify)
 			
+			return ret
+				
 	# Many many thanks to Wiipower
 	class Apploader(Struct):
 		__endian__ = Struct.BE
@@ -56,26 +72,27 @@ class WOD: #WiiOpticalDisc
 			self.size = Struct.uint32
 			self.trailingSize = Struct.uint32
 			self.padding = Struct.uint8[4]
+		def __str__(self):
+			ret = ''
+			ret += 'Apploader built on %s\n' % self.buildDate
+			ret += 'Entry point 0x%x\n' % self.entryPoint
+			ret += 'Size %i (%i of them are trailing)\n' % (self.size, self.trailingSize)
+			
+			return ret
 	
 	def __str__(self):
 		ret = ''
-		ret += '%s [%s%s%s]\n' % (self.discHdr.title, self.discHdr.discId, self.discHdr.gameCode, self.discHdr.region)
-		if self.discHdr.region == 'P':
-			ret += 'Region : PAL\n'
-		elif self.discHdr.region == 'E':
-			ret += 'Region : NTSC\n'
-		elif self.discHdr.region == 'J':
-			ret += 'Region : JPN\n'
-		ret += 'Version 0x%x Maker %i%i Audio streaming %x\n' % (self.discHdr.version, self.discHdr.makerCode[0], self.discHdr.makerCode[1], self.discHdr.audioStreaming)
-		ret += 'Hash verify flag 0x%x H3 verify flag : 0x%x\n' % (self.discHdr.hashVerify, self.discHdr.h3verify)
+		ret += '%s\n' % self.discHdr
 		ret += 'Found %i partitions (table at 0x%x)\n' % (self.partitionCount, self.partsTableOffset)
 		ret += 'Found %i channels (table at 0x%x)\n' % (self.channelsCount, self.chansTableOffset)
-		ret += 'Partition %i opened (type 0x%x) at 0x%x)\n' % (self.partitionOpen, self.partitionType, self.partitionOffset)
-		ret += 'Partition title : %s\n' % self.partitionHdr.title
+		ret += '\n'
+		ret += 'Partition %i opened (type 0x%x) at 0x%x\n' % (self.partitionOpen, self.partitionType, self.partitionOffset)
+		ret += '%s' % self.partitionHdr
 		ret += 'Partition key %s\n' % hexdump(self.partitionKey)
-		ret += 'Tmd at 0x%x\n' % self.tmdOffset
-		ret += 'main.dol at 0x%x fst at 0x%x (%xb)\n' % (self.dolOffset, self.fstSize, self.fstOffset)
-		ret += 'Apploader built on %s (%x bytes)\n' % (self.appLdr.buildDate, self.appLdr.size + self.appLdr.trailingSize)
+		ret += 'Tmd at 0x%x (%x)\n' % (self.tmdOffset, self.tmdSize)
+		ret += 'main.dol at 0x%x (%x)\n' % (self.dolOffset, self.dolSize)
+		ret += 'FST at 0x%x (%x)\n' % (self.fstSize, self.fstOffset)
+		ret += '%s\n' % (self.appLdr)
 		
 		return ret
 				
@@ -109,7 +126,60 @@ class WOD: #WiiOpticalDisc
 		
 		return Crypto().DecryptData(self.partitionKey, blockIV, blockData, True)
 		
+	def readPartition(self, offset, size):
 		
+		readStart = offset / 0x7C00
+		readLen = (align(size, 0x7C00)) / 0x7C00
+		blob = ''
+		
+		print 'Read at 0x%x (Start on %i block, ends at %i block) for %i bytes' % (offset, readStart, readStart + readLen, size)
+		
+		self.fp.seek(self.partitionOffset + 0x20000 + (0x8000 * readStart))
+		if readLen == 0:
+			blob += self.decryptBlock(self.fp.read(0x8000))
+		else:
+			for x in range(readLen + 1):
+				blob += self.decryptBlock(self.fp.read(0x8000))
+		
+		print 'Read from 0x%x to 0x%x' % (offset, offset + size)
+		offset -= readStart * 0x7C00
+		return blob[offset:offset + size]
+		
+	def readUnencrypted(self, offset, size):
+		if offset > 0x20000:
+			raise Exception('This read is on encrypted data')
+			
+		# FIXMII : Needs testing, extracting the tmd cause to have 10 null bytes in the end instead of 10 useful bytes at start :|
+		self.fp.seek(self.partitionOffset + 0x2A4 + offset)
+		return self.fp.read(size)
+		
+	def parseFst(self, buffer):
+		rootFiles = struct.unpack('>I', buffer[8:12])[0]
+		namesTable = buffer[12 * (rootFiles):]
+		
+		open('tbl.bin', 'w+b').write(str(buffer[12 * (rootFiles):].split('\x00')))
+	 
+		for i in range(1, rootFiles):
+			fstTableEntry = buffer[12 * i:12 * (i + 1)]
+						
+			if fstTableEntry[0] == '\x01':
+				fileType = 1
+			else:
+				fileType = 0
+			
+			temp = struct.unpack('>I', fstTableEntry[0x0:0x4])[0]
+			nameOffset = struct.unpack('>I', fstTableEntry[0x0:0x4])[0] & 0xffffff
+			fileName = namesTable[nameOffset:nameOffset + 256].split('\x00')[0]
+			print '%s %s\n' % (namesTable[nameOffset:nameOffset + 256].split('\x00')[0], namesTable[nameOffset:nameOffset + 256].split('\x00')[1])
+			fileOffset = 4 * (struct.unpack('>I', fstTableEntry[0x4:0x8])[0])
+			fileLenght = struct.unpack('>I', fstTableEntry[0x8:0x0c])[0]
+			if fileName == '':
+				time.sleep(5)			
+			
+			print '%s [%i] [0x%X] [0x%X] [0x%X]' % (fileName, fileType, fileOffset, fileLenght, nameOffset)
+			
+		os.chdir('..')
+
 	def openPartition(self, index):
 		if index > self.partitionCount:
 			raise ValueError('Partition index too big')
@@ -144,33 +214,16 @@ class WOD: #WiiOpticalDisc
 		self.dataOffset = struct.unpack(">I", self.fp.read(4))[0] >> 2
 		self.dataSize = struct.unpack(">I", self.fp.read(4))[0] >> 2
 		
-		self.dolOffset = 4 * struct.unpack(">I", self.readPartition (0x420, 4))[0]
-		
 		self.fstOffset = 4 * struct.unpack(">I", self.readPartition (0x424, 4))[0]
 		self.fstSize = 4 * struct.unpack(">I", self.readPartition (0x428, 4))[0]
 		
-	def readPartition(self, offset, size):
-		
-		readStart = offset / 0x7C00
-		readLen = (align(size, 0x7C00)) / 0x7C00
-		blob = ''
-		  
-		print 'Read at 0x%x (Start on %i block, ends at %i block) for %i bytes' % (offset, readStart, readStart + readLen, size)
-		
-		self.fp.seek(self.partitionOffset + 0x20000 + (0x8000 * readStart))
-		if readLen == 0:
-		  blob += self.decryptBlock(self.fp.read(0x8000))
-		else:
-		  for x in range(readLen + 1):
-			blob += self.decryptBlock(self.fp.read(0x8000))
-		
-		print 'Read from 0x%x to 0x%x' % (offset, offset + size)   
-    offset -= readStart * 0x7C00
-		return blob[offset:offset + size]
+		self.dolOffset = 4 * struct.unpack(">I", self.readPartition (0x420, 4))[0]
+		self.dolSize = self.fstOffset - self.dolOffset
 
 	def getFst(self):
-		#print 'Fst dump : %s' % hexdump(self.readPartition(self.fstOffset, self.fstSize))
-		return self.readPartition(self.fstOffset, self.fstSize)
+		fstBuf = self.readPartition(self.fstOffset, self.fstSize)
+		self.parseFst(fstBuf)
+		return fstBuf
 		
 	def getIsoBootmode(self):
 		if self.discHdr.discId == 'R' or self.discHdr.discId == '_':
@@ -194,16 +247,13 @@ class WOD: #WiiOpticalDisc
 		return self.channelsCount
 		
 	def getPartitionCerts(self):
-		self.fp.seek(self.partitionOffset + self.certsOffset)
-		return self.fp.read(self.certsSize)
+		return self.readUnencrypted(self.certsOffset, self.certsSize)
 		
 	def getPartitionH3Table(self):
-		self.fp.seek(self.partitionOffset + self.H3TableOffset)
-		return self.fp.read(0x18000)
+		return self.readUnencrypted(self.H3TableOffset, 0x18000)
 		
 	def getPartitionTmd(self):
-		self.fp.seek(self.partitionOffset + self.tmdOffset)
-		return self.fp.read(self.tmdSize)
+		return self.readUnencrypted(self.tmdOffset, self.tmdSize)
 		
 	def getPartitionTik(self):
 		self.fp.seek(self.partitionOffset)
