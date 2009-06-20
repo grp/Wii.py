@@ -10,7 +10,100 @@ from struct import *
 from common import *
 from title import *
 
+class CONF:
+	""" This class deal with setting.txt wich hold some wii info like game area and wii serial number """
+	
+	def __init__(self, f):
+		self.conf = ''
+		self.keys = {}
+		self.keyNames = []
+		self.lastKeyOffset = 0
+		self.totalKeys = 0
+		
+		try:
+			self.fp = open(f, 'r+b')
+		except:
+			self.fp = open(f, 'w+b')
+			return
+			
+		self.conf = self.fp.read(0x100)
+		self.conf = self.xorConf(self.conf)
+		self.fp.seek(0)
+	
+		keys = self.conf.split('\r\n')
+		
+		self.lastKeyOffset = self.conf.rfind('\r\n') + 2
+		self.totalKeys = len(keys) - 1
+	
+		for x in range(self.totalKeys):
+			keyName = keys[x].split('=')[0]
+			keyVal = keys[x].split('=')[1]
+			
+			self.keyNames.append(keyName)
+			self.keys[keyName] = keyVal
 
+	def getKeysCount(self):
+		return self.totalKeys		
+			
+	def getKeysName(self):
+		return self.keyNames
+
+	def getKeyValue(self, key):
+		try:
+			return self.keys[key.upper()]
+		except KeyError:
+			return 'Key not found'
+			
+	def setKeyValue(self, key, value):
+		if self.getKeyValue(key.upper()) != 'Key not found':
+			self.keys[key.upper()] = value.upper()
+			
+		self.conf = ''
+			
+		for key in self.keys:
+			self.conf += key
+			self.conf += '='
+			self.conf += self.keys[key]
+			self.conf += '\r\n'
+			
+		self.fp.seek(0)
+		self.fp.write(self.xorConf(self.conf))
+		self.fp.write('\x00' * (0x100 - len(self.conf)))
+			
+		self.lastKeyOffset = self.conf.rfind('\r\n') + 2
+	
+	def keyExist(self, key):
+		if self.getKeyValue(key.upper()) != 'Key not found':
+			return 0
+		else:
+			return 1
+				
+	def addKey(self, key, value):
+		if self.lastKeyOffset + len(key) + 1 + len(value) + 2 > 0x100:
+			return -1
+		if not self.keyExist(key):
+			return -2
+			
+		self.keys[key.upper()] = value.upper()
+		self.keyNames.append(key.upper())
+		self.totalKeys +=1
+			
+		self.conf = self.conf[:self.lastKeyOffset] + key.upper() + '=' + value.upper() + '\r\n'
+		
+		self.lastKeyOffset += len(key) + 1 + len(value) + 2
+
+		self.fp.seek(0)
+		self.fp.write(self.xorConf(self.conf))	
+
+	def xorConf(self, conf):
+		xorKey = 0x73B5DBFA
+		out = ''
+		for x in range(len(conf)):
+			out += chr(ord(conf[x]) ^ xorKey & 0xFF)
+			xorKey = (xorKey << 1) | (xorKey >> 31)
+			
+		return out
+	
 class iplsave:
 	"""This class performs all iplsave.bin related things. It includes functions to add a title to the list, remove a title based upon position or title,  and move a title from one position to another."""
 	class IPLSAVE_Entry(Struct):
