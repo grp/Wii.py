@@ -392,7 +392,7 @@ class BRLYT_TexRef:
     print "Wrap_T: %02x" % self.wrap_t
     return
   def set_texture(self, texture, wrap_s=0, wrap_t=0):
-    setl.texture_offset = texture
+    self.texture_offset = texture
     self.wrap_s = wrap_s
     self.wrap_s = wrap_t
   def get_length(self):
@@ -571,22 +571,22 @@ class BRLYT_Material:
     return
 
 class BRLYT_Pane:
-  def __init__(self):
+  def __init__(self, name = "RootPane", x = 0, y = 0, z = 0, w = 608, h = 456):
     self.orientation1 = 0x01
     self.orientation2 = 0x04
     self.alpha1 = 0xff
     self.alpha2 = 0x00
-    self.name = "RootPane"
-    self.x = 0.0
-    self.y = 0.0
-    self.z = 0.0
+    self.name = name
+    self.x = x
+    self.y = y
+    self.z = z
     self.flipx = 0.0
     self.flipy = 0.0
     self.angle = 0.0
     self.xmag = 1.0
     self.ymag = 1.0
-    self.width = 608.0
-    self.height = 456.0
+    self.width = w
+    self.height = h
   def eat_pane(self, file, offset):
     self.orientation1, self.orientation2, self.alpha1, self.alpha2 = struct.unpack('BBBB', file[offset:offset+4])
     self.name, self.x, self.y, self.z = struct.unpack('>24sfff', file[offset+0x04:offset+0x04+36])
@@ -786,15 +786,15 @@ class BRLYT_txt1:
     return
 
 class BRLYT_pic1:
-  def __init__(self):
+  def __init__(self, name = "Picture", x = 0, y = 0, z = 0, w = 608, h = 456, material_offs = 0):
     self.magic = "pic1"
     self.length = 0x0000000
-    self.pane = BRLYT_Pane()
+    self.pane = BRLYT_Pane(name, x, y, z, w, h)
     self.vtx_color1 = 0xFFFFFFFF
     self.vtx_color2 = 0xFFFFFFFF
     self.vtx_color3 = 0xFFFFFFFF
     self.vtx_color4 = 0xFFFFFFFF
-    self.mat_off = 0x0000
+    self.mat_off = material_offs
     self.num_coordinates = 0x01
     self.padding = 0x00
     self.coordinates = { }
@@ -1040,9 +1040,9 @@ class BRLYT_pas1:
     return
 
 class BRLYT_pan1:
-  def __init__(self):
+  def __init__(self, name = "RootPane", x = 0, y = 0, z = 0, w = 608, h = 456):
     self.magic = "pan1"
-    self.pane = BRLYT_Pane()
+    self.pane = BRLYT_Pane(name, x, y, z, w, h)
   def eat_tag(self, file, offset):
     self.magic, self.length = struct.unpack('>4sI', file[offset:offset+8])
     self.pane.eat_pane(file, offset+8)
@@ -1086,9 +1086,10 @@ class BRLYT_mat1:
     return
   def add_material(self, material, texture):
     self.materials[self.numoffs.number] = BRLYT_Material()
+    self.offsets.append(self.numoffs.number)
     self.numoffs.add()
-    self.materials[self.numoffs.number].name = material
-    self.materials[self.numoffs.number].set_texture(texture)
+    self.materials[self.numoffs.number - 1].name = material
+    self.materials[self.numoffs.number - 1].set_texture(texture)
   def get_length(self):
     templength = 4 + 4 + 4 + self.numoffs.number * 4
     for x in range(self.numoffs.number):
@@ -1199,6 +1200,12 @@ class BRLYT_txl1:
     else:
       self.offsets.append(4)
     return
+  def get_texoffset(self, texture):
+    texoffset = -1
+    for x in range(len(self.textures)):
+      if self.textures[x] == texture:
+        texoffset = x
+    return texoffset
   def get_length(self):
     templength = 4 + 4 + 4 + self.numoffs.number * 8
     for x in self.textures:
@@ -1248,12 +1255,6 @@ class BRLYT_lyt1:
     print "width: %f" % self.width
     print "height: %f" % self.height
     return
-  def get_texoffset(self, texture):
-    texoffset = -1
-    for x in range(len(self.textures)):
-      if self.textures[x] == texture:
-        texoffset = x - 1
-    return texoffset
   def get_length(self):
     self.length = 4 + 4 + 1 + 1 + 1 + 1 + 4 + 4
     return self.length
@@ -1339,7 +1340,7 @@ class BRLYT:
     return
   def get_texoffset(self, texture):
     texoffset = self.tags[1].get_texoffset(texture)
-    return texofffset
+    return texoffset
   def add_material(self, material, texture):
     texoffset = self.get_texoffset(texture)
     if texoffset == -1:
@@ -1349,6 +1350,21 @@ class BRLYT:
       if isinstance(self.tags[x], BRLYT_mat1):
         self.tags[x].add_material(material, texoffset)
     return
+  def add_picture(self, name, (x, y), (w, h), material):
+    self.add_pas1()
+    
+    mat_offs = None
+    for i in range(len(self.tags[2].materials)):
+    	if(self.tags[2].materials[i].name == material):
+    		mat_offs = self.tags[2].offsets[i]
+    if(mat_offs == None):
+    	raise IndexError("Material not found!")
+    self.tags[self.tags_filled] = BRLYT_pic1(name, x, y, 0, w, h, mat_offs)
+    self.tags_filled = self.tags_filled + 1
+    self.add_pae1()
+  def add_rootpane(self, (w, h)):
+    self.tags[self.tags_filled] = BRLYT_pan1("RootPane", 0, 0, 0, w, h)
+    self.tags_filled = self.tags_filled + 1
   def add_grp1(self):
     self.tags[self.tags_filled] = BRLYT_grp1()
     self.tags_filled = self.tags_filled + 1
@@ -1732,55 +1748,56 @@ class BRLAN:
       print "could now open file for writing"
     return
 
-if len(sys.argv) != 2:
-    print 'Usage: python banner.py <filename>'
-    sys.exit(1)
+if(__name__ == "__main__"):
+	
+	if len(sys.argv) != 2:
+ 	   print 'Usage: python banner.py <filename>'
+ 	   sys.exit(1)
 
-''' START BRLAN READING TEST ''' '''
-f = open(sys.argv[1], 'rb')
-if f:
-  rlan = f.read()
-  f.close()
-else:
-  print "could not open file for reading"
+	''' START BRLAN READING TEST ''' '''
+	f = open(sys.argv[1], 'rb')
+	if f:
+	  rlan = f.read()
+	  f.close()
+	else:
+	  print "could not open file for reading"
 
-brlan = BRLAN()
-brlan.eat_brlan(rlan)
-brlan.show_brlan()
-brlan.write_brlan("testout.brlan")
-''' ''' END BRLAN READING TEST '''
+	brlan = BRLAN()
+	brlan.eat_brlan(rlan)
+	brlan.show_brlan()
+	brlan.write_brlan("testout.brlan")
+	''' ''' END BRLAN READING TEST '''
 
-''' START BRLYT READING TEST ''' #'''
-f = open(sys.argv[1], 'rb')
-if f:
-    rlyt = f.read()
-    f.close()
-else:
-    print "could not open file"
+	''' START BRLYT READING TEST ''' #'''
+	f = open(sys.argv[1], 'rb')
+	if f:
+	    rlyt = f.read()
+	    f.close()
+	else:
+	    print "could not open file"
 
-brlyt = BRLYT()
-brlyt.eat_brlyt(rlyt)
-brlyt.show_brlyt()
-brlyt.write_brlyt("testout.brlyt")
-#''' ''' END BRLYT READING TEST '''
+	brlyt = BRLYT()
+	brlyt.eat_brlyt(rlyt)
+	brlyt.show_brlyt()
+	brlyt.write_brlyt("testout.brlyt")
+	#''' ''' END BRLYT READING TEST '''
 
+	''' TEST FOR WRITING A BRLYT FROM SCRATCH ''' '''
+	brlyt2 = BRLYT()
+	brlyt2.add_lyt1()
+	brlyt2.add_txl1()
+	brlyt2.add_texture("texture1.tpl")
+	brlyt2.add_mat1()
+	brlyt2.add_material("material1", "texture1.tpl")
+	brlyt2.add_pan1()
+	brlyt2.add_pas1()
+	brlyt2.add_pic1()
+	brlyt2.add_pae1()
+	brlyt2.add_grp1()
+	brlyt2.write_brlyt("testout.brlyt")
+	''' '''END TEST FOR BRLYT WRITING '''
 
-''' TEST FOR WRITING A BRLYT FROM SCRATCH ''' '''
-brlyt2 = BRLYT()
-brlyt2.add_lyt1()
-brlyt2.add_txl1()
-brlyt2.add_texture("texture1.tpl")
-brlyt2.add_mat1()
-brlyt2.add_material("material1", "texture1.tpl")
-brlyt2.add_pan1()
-brlyt2.add_pas1()
-brlyt2.add_pic1()
-brlyt2.add_pae1()
-brlyt2.add_grp1()
-brlyt2.write_brlyt("testout.brlyt")
-''' '''END TEST FOR BRLYT WRITING '''
-
-''' T O D O ''' '''
-fix txt1 text output
-add brlan making methods
-'''
+	''' T O D O ''' '''
+	fix txt1 text output
+	add brlan making methods
+	'''
