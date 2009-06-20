@@ -1352,7 +1352,7 @@ class BRLYT:
     return
   def add_picture(self, name, (x, y), (w, h), material):
     self.add_pas1()
-    
+     
     mat_offs = None
     for i in range(len(self.tags[2].materials)):
     	if(self.tags[2].materials[i].name == material):
