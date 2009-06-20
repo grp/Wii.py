@@ -104,6 +104,29 @@ class CONF:
 			
 		return out
 	
+       def delKey(self, key):
+	        try:
+		del self.keys[key.upper()]
+		self.keyNames.remove(key.upper())
+		self.totalKeys -=1
+		    
+		self.conf = ''
+      
+		for key in self.keys:
+			self.conf += key
+			self.conf += '='
+			self.conf += self.keys[key]
+			self.conf += '\r\n'
+      
+		self.fp.seek(0)
+		self.fp.write(self.xorConf(self.conf))
+		self.fp.write('\x00' * (0x100 - len(self.conf)))
+      
+		self.lastKeyOffset = self.conf.rfind('\r\n') + 2
+	
+                except KeyError:
+		       return 'Key not found'
+
 class iplsave:
 	"""This class performs all iplsave.bin related things. It includes functions to add a title to the list, remove a title based upon position or title,  and move a title from one position to another."""
 	class IPLSAVE_Entry(Struct):
