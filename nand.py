@@ -9,17 +9,11 @@ from common import *
 from title import *
 from formats import *
 
+
 class NAND:
-	"""This class performs all NAND related things. It includes functions to copy a title (given the TMD) into the correct structure as the Wii does, and will eventually have an entire ES-like system. Parameter f to the initializer is the folder that will be used as the NAND root."""
-	class UIDSYS(Struct):
-		__endian__ = Struct.BE
-		def __format__(self):
-			self.titleid = Struct.uint64
-			self.padding = Struct.uint16
-			self.uid = Struct.uint16
+	"""This class performs all NAND related things. It includes functions to copy a title (given the TMD) into the correct structure as the Wii does, and has an entire ES-like system. Parameter f to the initializer is the folder that will be used as the NAND root."""
 	def __init__(self, f):
 		self.f = f
-		self.ES = ESClass(self)
 		if(not os.path.isdir(f)):
 			os.mkdir(f)
 		if(not os.path.isdir(f + "/import")):
@@ -28,8 +22,6 @@ class NAND:
 			os.mkdir(f + "/meta")
 		if(not os.path.isdir(f + "/shared1")):
 			os.mkdir(f + "/shared1")
-		if(not os.path.isfile(f + "/shared1/content.map")):
-			open(f + "/shared1/content.map", "wb").close()
 		if(not os.path.isdir(f + "/shared2")):
 			os.mkdir(f + "/shared2")
 		if(not os.path.isdir(f + "/sys")):
@@ -40,134 +32,69 @@ class NAND:
 			open(f + "/sys/cert.sys", "wb").close()
 		if(not os.path.isfile(f + "/sys/space.sys")):
 			open(f + "/sys/space.sys", "wb").close()
-		if(not os.path.isfile(f + "/sys/uid.sys")):
-			uidfp = open(f + "/sys/uid.sys", "wb")
-			uiddat = self.UIDSYS()
-			uiddat.titleid = 0x0000000100000002
-			uiddat.padding = 0
-			uiddat.uid = 0x1000
-			uidfp.write(uiddat.pack())
-			uidfp.close()
 		if(not os.path.isdir(f + "/ticket")):
 			os.mkdir(f + "/ticket")
 		if(not os.path.isdir(f + "/title")):
 			os.mkdir(f + "/title")
 		if(not os.path.isdir(f + "/tmp")):
 			os.mkdir(f + "/tmp")
-	def getUIDForTitle(self, title):
-		uidfp = open(self.f + "/sys/uid.sys", "rb")
-		uiddat = uidfp.read()
-		cnt = len(uiddat) / 12
-		uidfp.seek(0)
-		uidstr = self.UIDSYS()
-		uidict = {}
-		for i in range(cnt):
-			uidstr.titleid = uidfp.read(8)
-			uidstr.padding = uidfp.read(2)
-			uidstr.uid = uidfp.read(2)
-			uidict[uidstr.titleid] = uidstr.uid
-		for key, value in uidict.iteritems():
-			if(hexdump(key, "") == ("%016X" % title)):
-				return value
-		return None
-	def getTitleForUID(self, uid):
-		uidfp = open(self.f + "/sys/uid.sys", "rb")
-		uiddat = uidfp.read()
-		cnt = len(uiddat) / 12
-		uidfp.seek(0)
-		uidstr = self.UIDSYS()
-		uidict = {}
-		for i in range(cnt):
-			uidstr.titleid = uidfp.read(8)
-			uidstr.padding = uidfp.read(2)
-			uidstr.uid = uidfp.read(2)
-			uidict[uidstr.titleid] = uidstr.uid
-		for key, value in uidict.iteritems():
-			if(hexdump(value, "") == ("%04X" % uid)):
-				return key
-		return None
-	def addTitleToUID(self, title):
-		uidfp = open(self.f + "/sys/uid.sys", "rb")
-		uiddat = uidfp.read()
-		cnt = len(uiddat) / 12
-		uidfp.seek(0)
-		uidstr = self.UIDSYS()
-		uidict = {}
-		enduid = "\x10\x01"
-		for i in range(cnt):
-			uidstr.titleid = uidfp.read(8)
-			uidstr.padding = uidfp.read(2)
-			uidstr.uid = uidfp.read(2)
-			if(hexdump(uidstr.titleid, "") == ("%016X" % title)):
-				uidfp.close()
-				return uidstr.uid
-			if(unpack(">H", uidstr.uid) >= unpack(">H", enduid)):
-				enduid = a2b_hex("%04X" % (unpack(">H", uidstr.uid)[0] + 1))
-			uidict[uidstr.titleid] = uidstr.uid
-		uidict[a2b_hex("%016X" % title)] = enduid
-		uidfp.close()
-		uidfp = open(self.f + "/sys/uid.sys", "wb")
-		for key, value in uidict.iteritems():
-			uidfp.write(key)
-			uidfp.write("\0\0")
-			uidfp.write(value)
-		uidfp.close()
-		return enduid
-	def contentByHash(self, hash):
-		"""When passed a sha1 hash (string of length 20), this will return the path name (including the NAND FS prefix) to the shared content specified by the hash in content.map. Note that if the content is not found, it will return False - not an empty string."""
-		cmfp = open(self.f + "/shared1/content.map", "rb")
-		cmdict = {}
-		num = len(data) / 28
-		for z in range(num):
-			name = cmfp.read(8)
-			hash = cmfp.read(20)
-			cmdict[name] = hash
-		for key, value in cmdict.iteritems():
-			if(value == hash):
-				return self.f + "/shared1/%s.app" % key
-		return False #not found
-	def addContentToMap(self, contentid, hash):
-		"""Adds a content to the content.map file for the contentid and hash.
-		Returns the content id."""
-		cmfp = open(self.f + "/shared1/content.map", "rb")
-		cmdict = {}
-		num = len(cmfp.read()) / 28
-		cmfp.seek(0)
-		for z in range(num):
-			name = cmfp.read(8)
-			hash = cmfp.read(20)
-			cmdict[name] = hash
-		cmdict["%08x" % contentid] = hash
-		cmfp.close()
-		cmfp = open(self.f + "/shared1/content.map", "wb")
-		for key, value in cmdict.iteritems():
-			cmfp.write(key)
-			cmfp.write(value)
-		cmfp.close()
-		return contentid
-	def addHashToMap(self, hash):
-		"""Adds a content to the content.map file for the hash (uses next unavailable content id)
-		 Returns the content id."""
-		cmfp = open(self.f + "/shared1/content.map", "rb")
-		cmdict = {}
-		cnt = 0
-		num = len(cmfp.read()) / 28
-		cmfp.seek(0)
-		for z in range(num):
-			name = cmfp.read(8)
-			hasho = cmfp.read(20)
-			cmdict[name] = hasho
-			cnt += 1
-		cmdict["%08x" % cnt] = hash
-		cmfp.close()
-		cmfp = open(self.f + "/shared1/content.map", "wb")
-		for key, value in cmdict.iteritems():
-			cmfp.write(key)
-			cmfp.write(value)
-		cmfp.close()
-		return cnt
-	def importTitle(self, prefix, tmd, tik, is_decrypted = False, result_decrypted = False):
-		"""When passed a prefix (the directory to obtain the .app files from, sorted by content id), a TMD instance, and a Ticket instance, this will add that title to the NAND base folder specified in the constructor. Unless is_decrypted is set, the contents are assumed to be encrypted. If result_decrypted is True, then the contents will not end up decrypted."""
+		self.ES = ESClass(self)
+		self.ISFS = ISFSClass(self)
+		self.UID = uidsys(self.f + "/sys/uid.sys")
+		self.contentmap = ContentMap(self.f + "/shared1/content.map")
+
+	def getContentByHashFromContentMap(self, hash):
+		"""Gets the filename of a shared content with SHA1 hash ``hash''. This includes the NAND prefix."""
+		return self.f + self.contentmap.contentByHash(hash)
+
+	def addContentToContentMap(self, contentid, hash):
+		"""Adds a content with content ID ``contentid'' and SHA1 hash ``hash'' to the content.map."""
+		return self.contentmap.addContentToMap(contentid, hash)
+
+	def addHashToContentMap(self, hash):
+		"""Adds a content with SHA1 hash ``hash'' to the content.map. It returns the content ID used."""
+		return self.contentmap.addHashToMap(hash)
+
+	def getContentCountFromContentMap(self):
+		"""Returns the number of contents in the content.map."""
+		return self.contentmap.contentCount()
+
+	def getContentHashesFromContentMap(self, count):
+		"""Returns the hashes of ``count'' contents in the content.map."""
+		return self.contentmap.contentHashes(count)
+
+	def addTitleToUIDSYS(self, title):
+		"""Adds the title with title ID ``title'' to the uid.sys file."""
+		return self.UID.addTitle(title)
+
+	def getTitleFromUIDSYS(self, uid):
+		"""Gets the title ID with UID ``uid'' from the uid.sys file."""
+		return self.UID.getTitle(uid)
+
+	def getUIDForTitleFromUIDSYS(self, title):
+		"""Gets the UID for title ID ``title'' from the uid.sys file."""
+		return self.UID.getUIDForTitle(uid)
+
+	def addTitleToMenu(self, tid):
+		"""Adds a title to the System Menu."""
+		a = iplsave(self.f + "/title/00000001/00000002/data/iplsave.bin")
+		type = 0
+		if(((tid & 0xFFFFFFFFFFFFFF00) == 0x0001000248414300) or ((tid & 0xFFFFFFFFFFFFFF00) == 0x0001000248414200)):
+			type = 1
+		a.addTitle(0,0, 0, tid, 1, type)
+
+	def addDiscChannelToMenu(self, x, y, page, movable):
+		"""Adds the disc channel to the System Menu."""
+		a = iplsave(self.f + "/title/00000001/00000002/data/iplsave.bin")
+		a.addDisc(x, y, page, movable)
+
+	def deleteTitleFromMenu(self, tid):
+		"""Deletes a title from the System Menu."""
+		a = iplsave(self.f + "/title/00000001/00000002/data/iplsave.bin")
+		a.deleteTitle(tid)
+
+	def importTitle(self, prefix, tmd, tik, add_to_menu = True, is_decrypted = False, result_decrypted = False):
+		"""When passed a prefix (the directory to obtain the .app files from, sorted by content id), a TMD instance, and a Ticket instance, this will add that title to the NAND base folder specified in the constructor. If add_to_menu is True, the title (if neccessary) will be added to the menu. The default is True. Unless is_decrypted is set, the contents are assumed to be encrypted. If result_decrypted is True, then the contents will not end up decrypted."""
 		self.ES.AddTitleStart(tmd, None, None, is_decrypted, result_decrypted, use_version = True)
 		self.ES.AddTitleTMD(tmd)
 		self.ES.AddTicket(tik)
@@ -180,7 +107,17 @@ class NAND:
 			self.ES.AddContentData(contents[i].cid, data)
 			self.ES.AddContentFinish(contents[i].cid)
 		self.ES.AddTitleFinish()
-		
+		if(add_to_menu == True):
+			if((tmd.tmd.titleid >> 32) != 0x00010008):
+				self.addTitleToMenu(tmd.tmd.titleid)
+
+class ISFSClass:
+	"""This class contains an interface to the NAND that simulates the permissions system and all other aspects of the ISFS.
+	The nand argument to the initializer is a NAND object."""
+	def __init__(self, nand):
+		self.nand = nand
+		self.f = nand.f
+
 class ESClass:
 	"""This class performs all services relating to titles installed on the Wii. It is a clone of the libogc ES interface.
 	The nand argument to the initializer is a NAND object."""
@@ -213,31 +150,22 @@ class ESClass:
 		if(tmd == None):
 			return 0
 		return tmd.tmd.numcontents
+	def GetTitleContents(self, titleid, version, count):
+		"""Returns a list of content IDs for title id ``titleid'' and version ``version''. It will return, at maximum, ``count'' entries."""
+		tmd = self.GetStoredTMD(titleid, version)
+		if(tmd == None):
+			return 0
+		contents = tmd.getContents()
+		out = ""
+		for z in range(count):
+			out += a2b_hex("%08X" % contents[z].cid)
+		return out
 	def GetNumSharedContents(self):
 		"""Gets how many shared contents exist on the NAND"""
-		cmfp = open(self.f + "/shared1/content.map", "rb")
-		cmdict = {}
-		cnt = 0
-		num = len(cmfp.read()) / 28
-		cmfp.seek(0)
-		for z in range(num):
-			name = cmfp.read(8)
-			hash = cmfp.read(20)
-			cmdict[name] = hash
-			cnt += 1
-		cmfp.close()
-		return cnt
+		return self.nand.getContentCountFromContentMap()
 	def GetSharedContents(self, cnt):
 		"""Gets cnt amount of shared content hashes"""
-		cmfp = open(self.f + "/shared1/content.map", "rb")
-		num = len(cmfp.read()) / 28
-		cmfp.seek(0)
-		hashout = ""
-		for z in range(num):
-			name = cmfp.read(8)
-			hashout += cmfp.read(20)
-		cmfp.close()
-		return hashout
+		return self.nand.getContentHashesFromContentMap(cnt)
 	def AddTitleStart(self, tmd, certs, crl, is_decrypted = False, result_decrypted = True, use_version = False):
 		if(not os.path.isdir(self.f + "/title/%08x" % (tmd.tmd.titleid >> 32))):
 			os.mkdir(self.f + "/title/%08x" % (tmd.tmd.titleid >> 32))
@@ -351,7 +279,7 @@ class ESClass:
 			fp.close()
 			outfp.write(tmpdata)
 			outfp.close()
-		self.nand.addTitleToUID(self.wtitleid)
+		self.nand.addTitleToUIDSYS(self.wtitleid)
 		if(self.tmdadded and self.use_version):
 			tmd.rawdump(self.f + "/title/%08x/%08x/content/title.tmd.%d" % (self.wtitleid >> 32, self.wtitleid & 0xFFFFFFFF, tmd.tmd.title_version))
 		elif(self.tmdadded):
