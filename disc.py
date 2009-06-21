@@ -1,6 +1,4 @@
 import os, hashlib, struct, subprocess, fnmatch, shutil, urllib, array
-import wx
-import png
 
 import time
 from title import *
@@ -124,7 +122,7 @@ class WOD: #WiiOpticalDisc
 		print 'IV %s (len %i)\n' % (hexdump(blockIV), len(blockIV))
 		blockData = block[0x0400:0x7FFF]
 		
-		return Crypto().DecryptData(self.partitionKey, blockIV, blockData, True)
+		return Crypto().decryptData(self.partitionKey, blockIV, blockData, True)
 		
 	def readPartition(self, offset, size):
 		

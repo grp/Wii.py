@@ -1,6 +1,4 @@
 import os, hashlib, struct, subprocess, fnmatch, shutil, urllib, array
-import wx
-import png
 
 from Crypto.Cipher import AES
 from Struct import Struct

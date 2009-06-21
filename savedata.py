@@ -1,6 +1,4 @@
 import os, hashlib, struct, subprocess, fnmatch, shutil, urllib, array
-import wx
-import png
 
 from hashlib import md5
 from Crypto.Cipher import AES
@@ -157,7 +155,7 @@ class Savegame():
 				print 'Extracted %s (%ib)' % (name, fileHdr.size)
 				
 				fileBuffer = self.fd.read(fileHdr.size)
-				fileBuffer = Crypto().DecryptData(self.sdKey, fileIV, fileBuffer, True)
+				fileBuffer = Crypto().decryptData(self.sdKey, fileIV, fileBuffer, True)
 				try:
 					open(name, 'w+b').write(fileBuffer)
 				except:
@@ -176,7 +174,7 @@ class Savegame():
 		
 	def analyzeHeader(self):
 		headerBuffer = self.fd.read(0xF0C0)
-		headerBuffer = Crypto().DecryptData(self.sdKey, self.sdIv, headerBuffer, True)
+		headerBuffer = Crypto().decryptData(self.sdKey, self.sdIv, headerBuffer, True)
 
 		self.hdr = self.savegameHeader().unpack(headerBuffer[:0x20])
 		

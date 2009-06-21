@@ -5,6 +5,7 @@ from savedata import *
 from banner import *
 from disc import *
 from nand import *
+from other import *
 from title import *
 from TPL import *
 from U8 import *

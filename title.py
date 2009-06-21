@@ -1,6 +1,4 @@
 import os, struct, subprocess, fnmatch, shutil, urllib, array
-import wx
-import png
 
 from Struct import Struct
 
@@ -53,7 +51,7 @@ class Ticket:
 		if(self.tik.commonkey_index == 1): #korean, kekekekek!
 			commonkey = koreankey
 		
-		self.titlekey = Crypto().DecryptTitleKey(commonkey, self.tik.titleid, self.tik.enctitlekey)
+		self.titlekey = Crypto().decryptTitleKey(commonkey, self.tik.titleid, self.tik.enctitlekey)
 	def getTitleKey(self):
 		"""Returns a string containing the title key."""
 		return self.titlekey
@@ -87,7 +85,7 @@ class Ticket:
 		self.rsamod = self.rsamod = "\x00" * 256
 		for i in range(65536):
 			self.tik.unk2 = i
-			if(Crypto().CreateSHAHashHex(self.tik.pack())[:2] == "00"):
+			if(Crypto().createSHAHashHex(self.tik.pack())[:2] == "00"):
 				break
 			if(i == 65535):
 				raise ValueError("Failed to fakesign. Aborting...")
@@ -204,7 +202,7 @@ class TMD:
 			data += self.tmd.pack()
 			for i in range(self.tmd.numcontents):
 				data += self.contents[i].pack()
-			if(Crypto().CreateSHAHashHex(data)[:2] == "00"):
+			if(Crypto().createSHAHashHex(data)[:2] == "00"):
 				break
 			if(i == 65535):
 				raise ValueError("Failed to fakesign! Aborting...")
@@ -271,7 +269,7 @@ class NUS:
 		certs += rawtik[0x2A4 + 0x300:] #CA (tik)
 		certs += rawtmd[0x328:0x328 + 0x300] #CP
 
-		if(Crypto().CreateMD5HashHex(certs) != "7ff50e2733f7a6be1677b6f6c9b625dd"):
+		if(Crypto().createMD5HashHex(certs) != "7ff50e2733f7a6be1677b6f6c9b625dd"):
 			raise ValueError("Failed to create certs! MD5 mistatch.")
 		
 		open("cert", "wb").write(certs)
@@ -301,8 +299,8 @@ class NUS:
 			
 			if(decrypt):
 				data = open("%08x.app" % output, "rb").read(content.size)
-				tmpdata = Crypto().DecryptContent(titlekey, content.index, data)
-				if(Crypto().ValidateSHAHash(tmpdata, content.hash) == 0):
+				tmpdata = Crypto().decryptContent(titlekey, content.index, data)
+				if(Crypto().validateSHAHash(tmpdata, content.hash) == 0):
 					raise ValueError("Decryption failed! SHA1 mismatch.")
 				open("%08x.app" % output, "wb").write(tmpdata)
 				
@@ -330,10 +328,10 @@ class WAD:
 			
 			if(decrypted):
 				if(fakesign):
-					content.hash = str(Crypto().CreateSHAHash(tmpdata))
+					content.hash = str(Crypto().createSHAHash(tmpdata))
 					content.size = len(tmpdata)
 			
-				encdata = Crypto().EncryptContent(titlekey, content.index, tmpdata)
+				encdata = Crypto().encryptContent(titlekey, content.index, tmpdata)
 			else:
 				encdata = tmpdata
 			
@@ -427,7 +425,7 @@ class WAD:
 			if(tmpsize % 16 != 0):
 				tmpsize += 16 - (tmpsize % 16)
 			tmptmpdata = fd.read(tmpsize)
-			tmpdata = Crypto().DecryptContent(titlekey, contents[i].index, tmptmpdata)
+			tmpdata = Crypto().decryptContent(titlekey, contents[i].index, tmptmpdata)
 			open("%08x.app" % contents[i].index, "wb").write(tmpdata)
 			if(tmpsize % 64 != 0):
 				fd.seek(64 - (tmpsize % 64), 1)
