@@ -4,6 +4,43 @@ from Struct import Struct
 
 from common import *
 
+class TicketView:
+	"""Creates a ticket view from the Ticket object ``tik''."""
+	class TikviewStruct(Struct):
+		__endian__ = Struct.BE
+		def __format__(self):
+			self.view = Struct.uint32
+			self.ticketid = Struct.uint64
+			self.devicetype = Struct.uint32
+			self.titleid = Struct.uint64
+			self.accessmask = Struct.uint16
+			self.reserved = Struct.string(0x3C)
+			self.cidxmask = Struct.string(0x40)
+			self.padding = Struct.uint16
+			self.limits = Struct.string(96)
+
+	def __init__(self, tik):
+		self.tikview = self.TikviewStruct()
+		self.tikview.view = 0
+		self.tikview.ticketid = tik.tik.tikid
+		self.tikview.devicetype = tik.tik.console
+		self.tikview.titleid = tik.getTitleID()
+		self.tikview.accessmask = 0xFFFF	# This needs to be changed, I'm sure...
+		self.tikview.reserved = "\0" * 0x3C
+		self.tikview.cidxmask = "\xFF" * 0x40	# This needs to be changed, I'm sure...
+		self.tikview.padding = 0x0000
+		self.tikview.limits = "\0" * 96
+
+	def __str__(self):
+		out = ""
+		out += " Ticket View:\n"
+		out += "  Title ID: %08X-%08X\n" % (self.tikview.titleid >> 32, self.tikview.titleid & 0xFFFFFFFF)
+		out += "  Device type: %08X\n" % self.tikview.devicetype
+		out += "  Ticket ID: %016X\n" % self.tikview.ticketid
+		out += "  Access Mask: %04X\n" % self.tikview.accessmask
+		
+		return out
+
 
 class Ticket:	
 	"""Creates a ticket from the filename defined in f. This may take a longer amount of time than expected, as it also decrypts the title key. Now supports Korean tickets (but their title keys stay Korean on dump)."""
@@ -28,7 +65,7 @@ class Ticket:
 			self.unk3 = Struct.uint16
 			self.limits = Struct.string(96)
 			self.unk4 = Struct.uint8
-	def __init__(self, f, korean = False):
+	def __init__(self, f):
 		isf = False
 		try:
 			isf = os.path.isfile(f)

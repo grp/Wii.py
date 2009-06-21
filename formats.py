@@ -108,7 +108,7 @@ class CONF:
 			
 		return out
 	
-	def DeleteKey(self, key):
+	def deleteKey(self, key):
 		"""Deletes the key ``key''."""
 		try:
 			del self.keys[key.upper()]
@@ -215,6 +215,178 @@ class CONF:
 		"""sets the Serial Number key. (Shortcut for setKeyValue("SERNO", value))"""
 		return self.setKeyValue("SERNO", value)
 
+class ContentMap:
+	"""This class performs all content.map related actions. Has functions to add contents, and find contents by hash.
+	The ``map'' parameter is the location of the content.map file."""
+	def __init__(self, map):
+		self.f = map
+		if(not os.path.isfile(map)):
+			open(map, "wb").close()
+	def contentByHash(self, hash):
+		"""When passed a sha1 hash (string of length 20), this will return the filename of the shared content (/shared1/%08x.app, no NAND prefix) specified by the hash in content.map. Note that if the content is not found, it will return False - not an empty string."""
+		cmfp = open(self.f, "rb")
+		cmdict = {}
+		num = len(data) / 28
+		for z in range(num):
+			name = cmfp.read(8)
+			hash = cmfp.read(20)
+			cmdict[name] = hash
+		for key, value in cmdict.iteritems():
+			if(value == hash):
+				return "/shared1/%s.app" % key
+		return False #not found
+
+	def addContentToMap(self, contentid, hash):
+		"""Adds a content to the content.map file for the contentid and hash.
+		Returns the content id."""
+		cmfp = open(self.f, "rb")
+		cmdict = {}
+		num = len(cmfp.read()) / 28
+		cmfp.seek(0)
+		for z in range(num):
+			name = cmfp.read(8)
+			hash = cmfp.read(20)
+			cmdict[name] = hash
+		cmdict["%08x" % contentid] = hash
+		cmfp.close()
+		cmfp = open(self.f, "wb")
+		for key, value in cmdict.iteritems():
+			cmfp.write(key)
+			cmfp.write(value)
+		cmfp.close()
+		return contentid
+
+	def addHashToMap(self, hash):
+		"""Adds a content to the content.map file for the hash (uses next unavailable content id)
+		 Returns the content id."""
+		cmfp = open(self.f, "rb")
+		cmdict = {}
+		cnt = 0
+		num = len(cmfp.read()) / 28
+		cmfp.seek(0)
+		for z in range(num):
+			name = cmfp.read(8)
+			hasho = cmfp.read(20)
+			cmdict[name] = hasho
+			cnt += 1
+		cmdict["%08x" % cnt] = hash
+		cmfp.close()
+		cmfp = open(self.f, "wb")
+		for key, value in cmdict.iteritems():
+			cmfp.write(key)
+			cmfp.write(value)
+		cmfp.close()
+		return cnt
+
+	def contentCount(self):
+		cmfp = open(self.f, "rb")
+		cmdict = {}
+		cnt = 0
+		num = len(cmfp.read()) / 28
+		cmfp.seek(0)
+		for z in range(num):
+			name = cmfp.read(8)
+			hash = cmfp.read(20)
+			cmdict[name] = hash
+			cnt += 1
+		cmfp.close()
+		return cnt
+
+	def contentHashes(self, count):
+		cmfp = open(self.f, "rb")
+		num = len(cmfp.read()) / 28
+		if(num > count):
+			num = count
+		cmfp.seek(0)
+		hashout = ""
+		for z in range(num):
+			name = cmfp.read(8)
+			hashout += cmfp.read(20)
+		cmfp.close()
+		return hashout
+
+class uidsys:
+	"""This class performs all uid.sys related actions. It includes functions to add titles and find titles from the uid.sys file.
+	The ``uid'' parameter is the location of the uid.sys file."""
+	class UIDSYSStruct(Struct):
+		__endian__ = Struct.BE
+		def __format__(self):
+			self.titleid = Struct.uint64
+			self.padding = Struct.uint16
+			self.uid = Struct.uint16
+
+	def __init__(self, uid):
+		self.f = uid
+		if(not os.path.isfile(uid)):
+			uidfp = open(uid, "wb")
+			uiddat = self.UIDSYSStruct()
+			uiddat.titleid = 0x0000000100000002
+			uiddat.padding = 0
+			uiddat.uid = 0x1000
+			uidfp.write(uiddat.pack())
+			uidfp.close()
+
+	def getUIDForTitle(self, title):
+		uidfp = open(self.f, "rb")
+		uiddat = uidfp.read()
+		cnt = len(uiddat) / 12
+		uidfp.seek(0)
+		uidstr = self.UIDSYSStruct()
+		uidict = {}
+		for i in range(cnt):
+			uidstr.titleid = uidfp.read(8)
+			uidstr.padding = uidfp.read(2)
+			uidstr.uid = uidfp.read(2)
+			uidict[uidstr.titleid] = uidstr.uid
+		for key, value in uidict.iteritems():
+			if(hexdump(key, "") == ("%016X" % title)):
+				return value
+		return None
+
+	def getTitle(self, uid):
+		uidfp = open(self.f, "rb")
+		uiddat = uidfp.read()
+		cnt = len(uiddat) / 12
+		uidfp.seek(0)
+		uidstr = self.UIDSYSStruct()
+		uidict = {}
+		for i in range(cnt):
+			uidstr.titleid = uidfp.read(8)
+			uidstr.padding = uidfp.read(2)
+			uidstr.uid = uidfp.read(2)
+			uidict[uidstr.titleid] = uidstr.uid
+		for key, value in uidict.iteritems():
+			if(hexdump(value, "") == ("%04X" % uid)):
+				return key
+		return None
+
+	def addTitle(self, title):
+		uidfp = open(self.f, "rb")
+		uiddat = uidfp.read()
+		cnt = len(uiddat) / 12
+		uidfp.seek(0)
+		uidstr = self.UIDSYSStruct()
+		uidict = {}
+		enduid = "\x10\x01"
+		for i in range(cnt):
+			uidstr.titleid = uidfp.read(8)
+			uidstr.padding = uidfp.read(2)
+			uidstr.uid = uidfp.read(2)
+			if(hexdump(uidstr.titleid, "") == ("%016X" % title)):
+				uidfp.close()
+				return uidstr.uid
+			if(unpack(">H", uidstr.uid) >= unpack(">H", enduid)):
+				enduid = a2b_hex("%04X" % (unpack(">H", uidstr.uid)[0] + 1))
+			uidict[uidstr.titleid] = uidstr.uid
+		uidict[a2b_hex("%016X" % title)] = enduid
+		uidfp.close()
+		uidfp = open(self.f, "wb")
+		for key, value in uidict.iteritems():
+			uidfp.write(key)
+			uidfp.write("\0\0")
+			uidfp.write(value)
+		uidfp.close()
+		return enduid
 
 class iplsave:
 	"""This class performs all iplsave.bin related things. It includes functions to add a title to the list, remove a title based upon position or title,  and move a title from one position to another."""
@@ -277,8 +449,27 @@ class iplsave:
 		fp.write(md5)
 		fp.close()
 
+	def slotUsed(self, x, y, page):
+		"""Returns whether or not the slot at (x,y) on page ``page'' is used."""
+		if((x + (y * 4) + (page * 12)) >= 0x30):
+			print "Too far!"
+			return None
+		fp = open(self.f, "rb")
+		data = fp.read()
+		fp.seek(16 + ((x + (y * 4) + (page * 12))) * 16)
+		baseipl_ent = self.IPLSAVE_Entry
+		baseipl_ent.type1 = fp.read(1)
+		baseipl_ent.type2 = fp.read(1)
+		baseipl_ent.unk = fp.read(4)
+		baseipl_ent.flags = fp.read(2)
+		baseipl_ent.titleid = fp.read(8)
+		fp.close()
+		if(baseipl_ent.type1 == "\0"):
+			return 0
+		return baseipl_ent.titleid
+
 	def addTitleBase(self, x, y, page, tid, movable, type, overwrite, clear, isdisc):
-		"""A base AddTitle function that is used by others. Don't use this."""
+		"""A base addTitle function that is used by others. Don't use this."""
 		if((x + (y * 4) + (page * 12)) >= 0x30):
 			print "Too far!"
 			return None
@@ -288,7 +479,7 @@ class iplsave:
 		baseipl_ent = self.IPLSAVE_Entry
 		baseipl_ent.type1 = fp.read(1)
 		fp.close()
-		if((baseipl_ent.type1 != "\0") and (not overwrite)):
+		if((self.slotUsed(x, y, page)) and (not overwrite)):
 			return self.addTitleBase(x + 1, y, page, tid, movable, type, overwrite, clear, isdisc)
 		fp = open(self.f, "wb")
 		fp.write(data)
