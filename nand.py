@@ -7,7 +7,7 @@ from struct import *
 
 from common import *
 from title import *
-
+from formats import *
 
 class NAND:
 	"""This class performs all NAND related things. It includes functions to copy a title (given the TMD) into the correct structure as the Wii does, and will eventually have an entire ES-like system. Parameter f to the initializer is the folder that will be used as the NAND root."""
