@@ -1,12 +1,37 @@
 import os, hashlib, struct, subprocess, fnmatch, shutil, urllib, array
 import wx
 import png
+from PIL import Image
 
 from Crypto.Cipher import AES
 from Struct import Struct
 
 from common import *
 
+def flatten(myTuple):
+	return myTuple[0] << 24 | myTuple[1] << 16 | myTuple[2] << 8 | myTuple[3] << 0
+
+def round_up(x, n):
+	left = x % n
+	return x + left
+
+def avg(w0, w1, c0, c1):
+	a0 = c0 >> 11
+	a1 = c1 >> 11
+	a = (w0*a0 + w1*a1) / (w0 + w1)
+	c = (a << 11) & 0xffff
+
+	a0 = (c0 >> 5) & 63
+	a1 = (c1 >> 5) & 63
+	a = (w0*a0 + w1*a1) / (w0 + w1)
+	c = c | ((a << 5) & 0xffff)
+
+	a0 = c0 & 31
+	a1 = c1 & 31
+	a = (w0*a0 + w1*a1) / (w0 + w1)
+	c = c | a
+
+	return c
 
 
 class TPL():
@@ -57,7 +82,7 @@ class TPL():
 		else:
 			self.file = None
 			self.data = file
-	def toTPL(self, outfile, width = 0, height = 0): #single texture only
+	def toTPL(self, outfile, width = 0, height = 0, format="RGBA8"): #single texture only
 		"""This converts a PNG image into a TPL. The PNG image is specified as the file parameter to the class initializer, while the output filename is specified here as the parameter outfile. Width and height are optional parameters and specify the size to resize the image to, if needed. Returns the output filename.
 		
 		This only can create TPL images with a single texture."""
@@ -70,17 +95,61 @@ class TPL():
 		tex.header_offset = 0x14
 		tex.pallete_offset = 0
 		
-		img = wx.Image(self.file, wx.BITMAP_TYPE_ANY)
-		if(width !=0 and height != 0 and (width != img.GetWidth() or height != img.GetHeight())):
-			img.Rescale(width, height)
-		w = img.GetWidth()
-		h = img.GetHeight()
+		img = Image.open(self.file)
+		theWidth, theHeight = img.size
+		if(width !=0 and height != 0 and (width != theWidth or height != theHeight)):
+			img.resize(width, height)
+		w, h = img.size
 		
 		texhead = self.TPLTextureHeader()
 		texhead.height = h
 		texhead.width = w
-		texhead.format = 6
-		texhead.data_off = 0x14 + len(texhead) + 8
+		if format == "I4":
+			texhead.format = 0
+			tpldata = self.toI4((w, h), img)
+		elif format == "I8":
+			texhead.format = 1
+			tpldata = self.toI8((w, h), img)
+		elif format == "IA4":
+			texhead.format = 2
+			tpldata = self.toIA4((w, h), img)
+		elif format == "IA8":
+			texhead.format = 3
+			tpldata = self.toIA8((w, h), img)
+		elif format == "RGB565":
+			texhead.format = 4
+			tpldata = self.toRGB565((w, h), img)
+		elif format == "RGB5A3":
+			texhead.format = 5
+			tpldata = self.toRGB5A3((w, h), img)
+		elif format == "RGBA8":
+			texhead.format = 6
+			tpldata = self.toRGBA8((w, h), img)
+		elif format == "CI4":
+			texhead.format = 8
+			''' ADD toCI4 '''
+			print "toCI4 not done"
+			sys.exit(2)
+			#tpldata = self.toCI4((w, h), img)
+		elif format == "CI8":
+			texhead.format = 8
+			''' ADD toCI8 '''
+			print "toCI8 not done"
+			sys.exit(2)
+			#tpldata = self.toCI8((w, h), img)
+		elif format == "CI14X2":
+			texhead.format = 10
+			''' ADD toCI14X2 '''
+			print "toCI14X2 not done"
+			sys.exit(2)
+			#tpldata = self.toCI14X2((w, h), img)
+		elif format == "CMP":
+			texhead.format = 14
+			''' ADD toCMP '''
+			print "toCMP not done"
+			sys.exit(2)
+			#tpldata = self.toCMP((w, h), img)
+		texhead.data_off = 0x14 + len(texhead)
 		texhead.wrap = [0, 0]
 		texhead.filter = [1, 1]
 		texhead.lod_bias = 0
@@ -89,48 +158,212 @@ class TPL():
 		texhead.max_lod = 0
 		texhead.unpacked = 0
 		
-		tpldata = self.toRGBA8((w, h), img, img.HasAlpha())
-		
 		f = open(outfile, "wb")
 		f.write(head.pack())
 		f.write(tex.pack())
 		f.write(texhead.pack())
-		f.write(struct.pack(">" + str(align(w, 4) * align(h, 4) * 4) + "B", *tpldata))
+		if format == "I4":
+			f.write(struct.pack(">" + str(align(w,4) * align(h,4) / 2) + "B", *tpldata))
+		if format == "I8":
+			f.write(struct.pack(">" + str(align(w,4) * align(h,4) * 1) + "B", *tpldata))
+		if format == "IA4":
+			f.write(struct.pack(">" + str(align(w,4) * align(h,4) * 1) + "B", *tpldata))
+		if format == "IA8":
+			f.write(struct.pack(">" + str(align(w,4) * align(h,4) * 1) + "H", *tpldata))
+		if format == "RGB565":
+			f.write(struct.pack(">" + str(align(w,4) * align(h,4) * 1) + "H", *tpldata))
+		if format == "RGB5A3":
+			f.write(struct.pack(">" + str(align(w,4) * align(h,4) * 1) + "H", *tpldata))
+		if format == "RGBA8":
+			f.write(struct.pack(">" + str(align(w,4) * align(h,4) * 4) + "B", *tpldata))
+		if format == "CI4":
+			''' ADD toCI4 '''
+			#f.write(struct.pack(">"+ str(align(w,4) * align(h,4) * 4) + "B", *tpldata))
+		if format == "CI88":
+			''' ADD toCI8 '''
+			#f.write(struct.pack(">"+ str(align(w,4) * align(h,4) * 4) + "B", *tpldata))
+		if format == "CI14X2":
+			''' ADD toCI14X2 '''
+			#f.write(struct.pack(">"+ str(align(w,4) * align(h,4) * 4) + "B", *tpldata))
+		if format == "CMP":
+			''' ADD toCMP '''
+			#f.write(struct.pack(">"+ str(align(w,4) * align(h,4) * 4) + "B", *tpldata))
 		f.close()
 		
 		return outfile
 		
-	def toRGBA8(self, (w, h), img, alpha):
+	def toI4(self, (w, h), img):
+		out = [0 for i in range(align(w, 4) * align(h, 4) / 2)]
+		outp = 0
+		inp = list(img.getdata())
+		for y1 in range(0, h, 8):
+			for x1 in range(0, w, 8):
+				for y in range(y1, y1+8, 1):
+					for x in range(x1, x1+8, 2):
+						if x>=w or y>=h:
+							newpixel = 0
+						else:
+							rgba = flatten(inp[x+y*w])
+							i1 = (rgba >> 0) & 0xff
+							#rgba = img[x + 1 + (y * w)]
+							rgba = flatten(inp[x+1+y*w])
+							i2 = (rgba >> 0) & 0xff
+
+							newpixel = (((i1 * 15) / 255) << 4)
+							newpixel |= (((i2 * 15) / 255) & 0xf)
+						out[outp] = newpixel
+						outp += 1
+		return out
+	def toI8(self, (w, h), img):
+		out = [0 for i in range(align(w, 4) * align(h, 4))]
+		outp = 0
+		inp = list(img.getdata())
+		for y1 in range(0, h, 4):
+			for x1 in range(0, w, 8):
+				for y in range(y1, y1+4, 1):
+					for x in range(x1, x1+8, 1):
+						rgba = flatten(inp[x + (y * w)])
+						if x>= w or y>=h:
+							i1 = 0
+						else:
+							i1 = (rgba >> 0) & 0xff
+						out[outp] = i1
+						outp += 1
+		return out
+	def toIA4(self, (w, h), img):
+		out = [0 for i in range(align(w, 4) * align(h, 4))]
+		outp = 0
+		inp = list(img.getdata())
+		for y1  in range(0, h, 4):
+			for x1 in range(0, w, 8):
+				for y in range(y1, y1+4, 1):
+					for x in range(x1, x1+8, 1):
+						if x>=w or y>=h:
+							newpixel = 0
+						else:
+							rgba = flatten(inp[x + (y * w)])
+							i1 = (rgba >> 0)  & 0xff
+							a1 = (rgba >> 24) & 0xff
+
+							newpixel = (((i1 * 15) / 255) & 0xf)
+							newpixel |= (((a1 * 15) / 255) << 4)
+						out[outp] = newpixel
+						outp += 1
+		return out
+	def toIA8(self, (w, h), img):
+		out = [0 for i in range(align(w, 4) * align(h, 4))]
+		outp = 0
+		inp = list(img.getdata())
+		for y1 in range(0, h, 4):
+			for x1 in range(0, w, 4):
+				for y in range(y1, y1+4, 1):
+					for x in range(x1, x1+4, 1):
+						if x>=w or y>=h:
+							newpixel = 0
+						else:
+							rgba = flatten(inp[x + (y * w)])
+							i1 = (rgba >> 0)  & 0xff
+							a1 = (rgba >> 24) & 0xff
+
+							newpixel = a1 << 8
+							newpixel |= i1
+						out[outp] = newpixel
+		return out
+	def toRGB565(self, (w, h), img):
+		out = [0 for i in range(align(w, 4) * align(h, 4))]
+		outp = 0
+		inp = img.getdata()
+		for y1 in range(0, h, 4):
+			for x1 in range(0, w, 4):
+				for y in range(y1, y1+4, 1):
+					for x in range(x1, x1+4, 1):
+						newpixel = 0
+						if x>=w or y>=h:
+							newpixel = 0
+						else:
+							rgba = flatten(inp[x+y*w])
+							r = (rgba >> 0)  & 0xff
+							g = (rgba >> 8)  & 0xff
+							b = (rgba >> 16) & 0xff
+							newpixel = ((b >>3) << 11) | ((g >>2) << 5) | ((r >>3) << 0)
+						#out[outp] = swap16(newpixel)
+						out[outp] = newpixel
+						outp += 1
+		return out
+	def toRGB5A3(self, (w, h), img):
+		out = [0 for i in range(align(w, 4) * align(h, 4))]
+		outp = 0
+		inp = list(img.getdata())
+		for y1 in range(0, h, 4):
+			for x1 in range(0, w, 4):
+				for y in range(y1, y1+4, 1):
+					for x in range(x1, x1+4, 1):
+						newpixel = 0
+						if x>=w or y>=h:
+							newpixel = 0
+						else:
+							rgba = flatten(inp[x + (y * h)])
+							r = (rgba >> 0) &  0xff
+							g = (rgba >> 8) &  0xff
+							b = (rgba >> 16) & 0xff
+							a = (rgba >> 24) & 0xff
+							if (a <= 0xda):
+								newpixel |= (1 << 15)
+								r = ((r * 15)  / 255) & 0xf
+								g = ((r * 15)  / 255) & 0xf
+								b = ((r * 15)  / 255) & 0xf
+								a = ((r * 7)   / 255) & 0x7
+								newpixel |= r << 12
+								newpixel |= g << 8
+								newpixel |= b << 4
+								newpixel |= a << 0
+							else:
+								newpixel &= (1 << 15)
+								r = ((r * 31) / 255) & 0x1f
+								g = ((g * 31) / 255) & 0x1f
+								b = ((b * 31) / 255) & 0x1f
+								newpixel |= r << 10
+								newpixel |= g << 5
+								newpixel |= b << 0
+						#out[outp] = swap16(newpixel)
+						out[outp] = newpixel
+						outp += 1
+		return out
+	def toRGBA8(self, (w, h), img):
 		out = [0 for i in range(align(w, 4) * align(h, 4) * 4)]
-		i = z = 0
+		inp = list(img.getdata())
+		alpha = True
+		iv = z = 0
 		lr = la = lb = lg = [0 for i in range(32)]
-		for y in range(0, h, 4):
-			for x in range(0, w, 4):
-				for y1 in range(y, y + 4):
-					for x1 in range(x, x + 4):
-						if(y1 >= h or x1 >= w):
+		for y1 in range(0, h, 4):
+			for x1 in range(0, w, 4):
+				for y in range(y1, y1 + 4):
+					for x in range(x1, x1 + 4):
+						if(y >= h or x >= w):
 							lr[z] = lg[z] = lb[z] = la[z] = 0
 						else:
-							lr[z] = img.GetRed(x1, y1)
-							lg[z] = img.GetGreen(x1, y1)
-							lb[z] = img.GetBlue(x1, y1)
-							if(alpha == True):
-								la[z] = img.GetAlpha(x1, y1)
-							else:
-								la[z] = 255
+							rgba = flatten(inp[x1 + (y1 * w)])
+						lr[z] = (rgba >> 0) & 0xff
+						lg[z] = (rgba >> 8) & 0xff
+						lb[z] = (rgba >> 16) & 0xff
+						if(alpha == True):
+							lr[z] = (rgba >> 24) & 0xff
+						else:
+							la[z] = 255
 						z += 1
-				
 				if(z == 16):
-					for iv in range(16):
-						out[i] = lr[iv]
-						i += 1
-						out[i] = la[iv]
-						i += 1
-					for iv in range(16):
-						out[i] = lb[iv]
-						i += 1
-						out[i] = lg[iv]
-						i += 1
+					for i in range(16):
+						print i, w*h*4
+						out[iv] = lr[i]
+						iv += 1
+						out[iv] = la[i]
+						iv += 1
+					for i in range(16):
+						print i, w*h*4
+						out[iv] = lb[i]
+						iv += 1
+						out[iv] = lg[i]
+						iv += 1
 					z = 0
 		return out
 	def toPNG(self, outfile): #single texture only
@@ -174,6 +407,7 @@ class TPL():
 				rgbdata = self.I4((w, h), tpldata)
 			
 			elif(tex.format == 1): #I8, 8-bit
+				print w*h, tex.data_off, len(data)-tex.data_off
 				tpldata = struct.unpack(">" + str(w * h) + "B", data[tex.data_off:tex.data_off + (w * h * 1)])
 				rgbdata = self.I8((w, h), tpldata)
 			elif(tex.format == 2): #IA4, 8-bit
@@ -239,6 +473,115 @@ class TPL():
 		output.write(open(outfile, "wb"), rgbdata)
 		
 		return outfile
+	def toImage(self, outfile):
+		"""This converts a TPL texture to a PNG image. You specify the input TPL filename in the initializer, and you specify the output filename in the outfile parameter to this method. Returns the output filename.
+		
+		This only supports single textured TPL images."""
+		if(self.file):
+			data = open(self.file, "rb").read()
+		else:
+			data = self.data
+		
+		header = self.TPLHeader()
+		textures = []
+		pos = 0
+		
+		header.unpack(data[pos:pos + len(header)])
+		pos += len(header)
+		
+		palette_offsets = []
+		
+		for i in range(header.ntextures):
+			tmp = self.TPLTexture()
+			tmp.unpack(data[pos:pos + len(tmp)])
+			textures.append(tmp)
+			pos += len(tmp)
+			if(tmp.palette_offset > 0):
+				palette_offsets.append(tmp.palette_offset)
+		
+		if(header.ntextures > 1):
+			raise ValueError("Only one texture supported. Don't touch me!")
+		
+		for i in range(header.ntextures):
+			head = textures[i]
+			tex = self.TPLTextureHeader()
+			tex.unpack(data[head.header_offset:head.header_offset + len(tex)])
+			w = tex.width
+			h = tex.height
+		
+			if(tex.format == 0): #I4, 4-bit
+				tpldata = struct.unpack(">" + str((w * h) / 2) + "B", data[tex.data_off:tex.data_off + ((w * h) / 2)])
+				rgbdata = self.I4((w, h), tpldata)
+			
+			elif(tex.format == 1): #I8, 8-bit
+				print w*h, tex.data_off, len(data)-tex.data_off
+				tpldata = struct.unpack(">" + str(w * h) + "B", data[tex.data_off:tex.data_off + (w * h * 1)])
+				rgbdata = self.I8((w, h), tpldata)
+			elif(tex.format == 2): #IA4, 8-bit
+				tpldata = struct.unpack(">" + str(w * h) + "B", data[tex.data_off:tex.data_off + (w * h * 1)])
+				rgbdata = self.IA4((w, h), tpldata)
+			
+			elif(tex.format == 4): #RGB565, 16-bit
+				tpldata = struct.unpack(">" + str(w * h) + "H", data[tex.data_off:tex.data_off + (w * h * 2)])
+				rgbdata = self.RGB565((w, h), tpldata)
+			elif(tex.format == 5): #RGB5A3, 16-bit
+				tpldata = struct.unpack(">" + str(w * h) + "H", data[tex.data_off:tex.data_off + (w * h * 2)])
+				rgbdata = self.RGB5A3((w, h), tpldata)
+			elif(tex.format == 3): #IA8, 16-bit
+				tpldata = struct.unpack(">" + str(w * h) + "H", data[tex.data_off:tex.data_off + (w * h * 2)])
+				rgbdata = self.IA8((w, h), tpldata)
+			
+			elif(tex.format == 6): #RGBA8, 32-bit, but for easyness's sake lets do it with 16-bit
+				tpldata = struct.unpack(">" + str(w * h * 2) + "H", data[tex.data_off:tex.data_off + (w * h * 4)])
+				rgbdata = self.RGBA8((w, h), tpldata)
+				
+			elif(tex.format == 8 or tex.format == 9 or tex.format == 10):
+				palhead = self.TPLPaletteHeader()
+				offs = palette_offsets.pop(0)
+				palhead.unpack(data[offs:offs + len(palhead)])
+
+				tpldata = struct.unpack(">" + str(palhead.nitems) + "H", data[palhead.offset:palhead.offset + (palhead.nitems * 2)])
+				if(palhead.format == 0):
+					palette_data = self.IA8((palhead.nitems, 1), tpldata)[0]
+				elif(palhead.format == 1):
+					palette_data = self.RGB565((palhead.nitems, 1), tpldata)[0]
+				elif(palhead.format == 2):
+					palette_data = self.RGB5A3((palhead.nitems, 1), tpldata)[0]
+				
+				paldata = []
+				for i in range(0, palhead.nitems * 4, 4):
+					tmp = 0
+					tmp |= palette_data[i + 0] << 24
+					tmp |= palette_data[i + 1] << 16
+					tmp |= palette_data[i + 2] << 8
+					tmp |= palette_data[i + 3] << 0
+					paldata.append(tmp)
+				
+				if(tex.format == 8):
+					tpldata = struct.unpack(">" + str((w * h) / 2) + "B", data[tex.data_off:tex.data_off + ((w * h) / 2)])
+					rgbdata = self.CI4((w, h), tpldata, paldata)
+				if(tex.format == 9):
+					tpldata = struct.unpack(">" + str(w * h) + "B", data[tex.data_off:tex.data_off + (w * h * 1)])
+					rgbdata = self.CI8((w, h), tpldata, paldata)
+				if(tex.format == 10):
+					tpldata = struct.unpack(">" + str(w * h) + "H", data[tex.data_off:tex.data_off + (w * h * 2)])
+					rgbdata = self.CI14X2((w, h), tpldata, paldata)
+			elif(tex.format == 14):
+				sz = ((w + 7) >> 3) * ((w + 7) >> 3) * 32
+				#print sz
+				#print len(data[tex.data_off:])
+				tpldata = struct.unpack(">" + str(sz / 2) + "H", data[tex.data_off:tex.data_off + sz])
+				
+				rgbdata = self.CMP((w, h), tpldata)
+			else:
+				raise TypeError("Unsupported TPL Format: " + str(tex.format))
+		
+		#output = png.Writer(width = w, height = h, alpha = True, bitdepth = 8)
+		output = Image.fromstring("RGBA", (w, h), rgbdata)
+		#output.write(open(outfile, "wb"), rgbdata)
+		output.save(outfile, "PNG")
+		
+		return outfile
 	def getSizes(self):
 		"""This returns a tuple containing the width and height of the TPL image filename in the class initializer. Will only return the size of single textured TPL images."""
 		data = open(self.file, "rb").read()
@@ -285,7 +628,7 @@ class TPL():
 		app.MainLoop()
 		os.unlink("tmp.png")
 	def RGBA8(self, (x, y), data):
-		out = [[0 for i in range(x * 4)] for i in range(y)]
+		out = [0 for i in range(x * y)]
 		inp = 0
 		for i in xrange(0, y, 4):
 			for j in xrange(0, x, 4):
@@ -299,16 +642,14 @@ class TPL():
 							if k == 0:
 								a = (texel >> 8) & 0xff
 								r = (texel >> 0) & 0xff
-								out[l][(m*4)+0] = r
-								out[l][(m*4)+3] = a
+								out[m + (l * x)] = out[m + (l * x)] | ((r<<0) | (a<<24))
 							else:
 								g = (texel >> 8) & 0xff
 								b = (texel >> 0) & 0xff
-								out[l][(m*4)+1] = g
-								out[l][(m*4)+2] = b
-		return out
+								out[m + (l * x)] = out[m + (l * x)] | ((g<<8) | (b<<16))
+		return ''.join(Struct.uint32(p) for p in out)
 	def RGB5A3(self, (w, h), jar):
-		out = [[0 for i in range(w * 4)] for i in range(h)]
+		out = [0 for i in range(w * h)]
 		i = 0
 		for y in range(0, h, 4):
 			for x in range(0, w, 4):
@@ -330,13 +671,11 @@ class TPL():
 							b = (((pixel >> 0) & 0x0F) * 255) / 15
 							a = 255 - (((pixel >> 12) & 0x07) * 64) / 7
 
-						out[y1][(x1 * 4) + 0] = r
-						out[y1][(x1 * 4) + 1] = g
-						out[y1][(x1 * 4) + 2] = b
-						out[y1][(x1 * 4) + 3] = a
-		return out
+						rgba = (r<<0) | (g<<8) | (b<<16) | (a<<24)
+						out[y1*w+x1] = rgba
+		return ''.join(Struct.uint32(p) for p in out)
 	def RGB565(self, (w, h), jar):
-		out = [[0 for i in range(w * 4)] for i in range(h)]
+		out = [0 for i in range(x * y)]
 		i = 0
 		for y in range(0, h, 4):
 			for x in range(0, w, 4):
@@ -352,13 +691,11 @@ class TPL():
 						b = ((pixel >> 0) & 0x1F) << 3
 						a = 255
 
-						out[y1][(x1 * 4) + 0] = r
-						out[y1][(x1 * 4) + 1] = g
-						out[y1][(x1 * 4) + 2] = b
-						out[y1][(x1 * 4) + 3] = a
-		return out
+						rgba = (r<<0) | (g<<8) | (b<<16) | (a<<24)
+						out[y1*w+x1] = rgba
+		return ''.join(Struct.uint32(p) for p in out)
 	def I4(self, (w, h), jar):
-		out = [[0 for i in range(w * 4)] for i in range(h)]
+		out = [0 for i in range(x * y)]
 		i = 0
 		for y in range(0, h, 8):
 			for x in range(0, w, 8):
@@ -394,7 +731,7 @@ class TPL():
 						out[y1][((x1 + 1) * 4) + 3] = a
 		return out
 	def IA4(self, (w, h), jar):
-		out = [[0 for i in range(w * 4)] for i in range(h)]
+		out = [0 for i in range(x * y)]
 		i = 0
 		for y in range(0, h, 4):
 			for x in range(0, w, 8):
@@ -410,13 +747,11 @@ class TPL():
 						b = (pixel & 0x0F) * 255 / 15
 						a = 255 - ((pixel & 0xFF) * 255 / 15)
 
-						out[y1][(x1 * 4) + 0] = r
-						out[y1][(x1 * 4) + 1] = g
-						out[y1][(x1 * 4) + 2] = b
-						out[y1][(x1 * 4) + 3] = a
-		return out
+						rgba = (r<<0) | (g<<8) | (b<<16) | (a<<24)
+						out[y1*w+x1] = rgba
+		return ''.join(Struct.uint32(p) for p in out)
 	def I8(self, (w, h), jar):
-		out = [[0 for i in range(w * 4)] for i in range(h)]
+		out = [0 for i in range(x * y)]
 		i = 0
 		for y in range(0, h, 4):
 			for x in range(0, w, 8):
@@ -432,13 +767,11 @@ class TPL():
 						b = pixel
 						a = 255
 
-						out[y1][(x1 * 4) + 0] = r
-						out[y1][(x1 * 4) + 1] = g
-						out[y1][(x1 * 4) + 2] = b
-						out[y1][(x1 * 4) + 3] = a
-		return out
+						rgba = (r<<0) | (g<<8) | (b<<16) | (a<<24)
+						out[y1*w+x1] = rgba
+		return ''.join(Struct.uint32(p) for p in out)
 	def IA8(self, (w, h), jar):
-		out = [[0 for i in range(w * 4)] for i in range(h)]
+		out = [0 for i in range(x * y)]
 		i = 0
 		for y in range(0, h, 4):
 			for x in range(0, w, 4):
@@ -454,13 +787,11 @@ class TPL():
 						b = pixel >> 8
 						a = 255 - (pixel & 0xFF)
 
-						out[y1][(x1 * 4) + 0] = r
-						out[y1][(x1 * 4) + 1] = g
-						out[y1][(x1 * 4) + 2] = b
-						out[y1][(x1 * 4) + 3] = a
-		return out
+						rgba = (r<<0) | (g<<8) | (b<<16) | (a<<24)
+						out[y1*w+x1] = rgba
+		return ''.join(Struct.uint32(p) for p in out)
 	def CI4(self, (w, h), jar, pal):
-		out = [[0 for i in range(w * 4)] for i in range(h)]
+		out = [0 for i in range(x * y)]
 		i = 0
 		for y in range(0, h, 8):
 			for x in range(0, w, 8):
@@ -475,10 +806,8 @@ class TPL():
 						b = (pal[pixel] & 0x0000FF00) >> 8
 						a = (pal[pixel] & 0x000000FF) >> 0
 
-						out[y1][(x1 * 4) + 0] = r
-						out[y1][(x1 * 4) + 1] = g
-						out[y1][(x1 * 4) + 2] = b
-						out[y1][(x1 * 4) + 3] = a
+						rgba = (r<<0) | (g<<8) | (b<<16) | (a<<24)
+						out[y1*w+x1] = rgba
 						
 						if(y1 >= h or x1 >= w):
 							continue
@@ -490,13 +819,11 @@ class TPL():
 						b = (pal[pixel] & 0x0000FF00) >> 8
 						a = (pal[pixel] & 0x000000FF) >> 0
 
-						out[y1][((x1 + 1) * 4) + 0] = r
-						out[y1][((x1 + 1) * 4) + 1] = g
-						out[y1][((x1 + 1) * 4) + 2] = b
-						out[y1][((x1 + 1) * 4) + 3] = a
-		return out
+						rgba = (r<<0) | (g<<8) | (b<<16) | (a<<24)
+						out[y1*w+x1+1] = rgba
+		return ''.join(Struct.uint32(p) for p in out)
 	def CI8(self, (w, h), jar, pal):
-		out = [[0 for i in range(w * 4)] for i in range(h)]
+		out = [0 for i in range(x * y)]
 		i = 0
 		for y in range(0, h, 4):
 			for x in range(0, w, 8):
@@ -512,106 +839,50 @@ class TPL():
 						b = (pal[pixel] & 0x0000FF00) >> 8
 						a = (pal[pixel] & 0x000000FF) >> 0
 
-						out[y1][(x1 * 4) + 0] = r
-						out[y1][(x1 * 4) + 1] = g
-						out[y1][(x1 * 4) + 2] = b
-						out[y1][(x1 * 4) + 3] = a
-		return out
-	def icolor(self, a, b, fa, fb, fc):
-		c = 0
-		for i in range(0, 32, 8):
-			xa = (a >> i) & 0xff
-			xb = (b >> i) & 0xff
-			xc = min(255, max(0, int((xa * fa + xb * fb) / fc)))
-			c |= xc << i
-		return c
-	def single565(self, pixel):
-		r = ((pixel >> 11) & 0x1F) << 3
-		g = ((pixel >> 5) & 0x3F) << 2
-		b = ((pixel >> 0) & 0x1F) << 3
-		a = 255
-		return (r << 24) | (g << 16) | (b << 8) | (a << 0)
-	def CMP(self, (w, h), jar):
-		out = [[0 for i in range(w * 4)] for i in range(h)]
-		
-		pos = 0
-		ofs = 0
-		
-		rgb = [0 for i in range(4)]
-		dst = [0 for i in range(w * h)]
-		for y in range(0, h, 8):
-			for x in range(0, w, 8):
-				maxw = min(w - x, 8)
-				for k in range(2):
-					for l in range(2):	
-						rgb[0] = self.single565(jar[pos])
-						pos += 1
-						rgb[1] = self.single565(jar[pos])
-						pos += 1
+						rgba = (r<<0) | (g<<8) | (b<<16) | (a<<24)
+						out[y1*w+x1] = rgba
+		return ''.join(Struct.uint32(p) for p in out)
+	def CMP(self, (w, h), data):
+		temp = [0 for i in range(w * h)]
+		pix = [ 0 , 0 , 0 ]
+		c = [ 0 , 0 , 0 , 0 ]
+		outp = 0
+		for y in xrange(h):
+			for x in xrange(w):
+				ww = round_up(w, 8)
 
-						if(jar[pos + 0] > jar[pos + 1]):
-							rgb[2] = self.icolor(rgb[0], rgb[1], 2, 1, 3) | 0xFF000000
-							rgb[3] = self.icolor(rgb[1], rgb[0], 2, 1, 3) | 0xFF000000
-						else:
-							rgb[2] = self.icolor(rgb[0], rgb[1], 0.5, 0.5, 1) | 0xFF000000
-							#rgb[3] = self.icolor(rgb[1], rgb[0], 2, 1, 3) & ~0xFF000000
-							rgb[3] = 0
-							
-						# color selection (00, 01, 10, 11)
-						cm = jar[pos:pos + 2]
-						pixels = []
-						for pix in cm:
-							pixels.append(pix >> 8)
-							pixels.append(pix & 0xFF)
-						pos += 2
-						
-						for n in range(4):
-							# one row (4 texels)
-							if(ofs < (w * h)):
-								if(maxw > 0 + l * 4):
-									dst[ofs] = rgb[(pixels[n] & 0xc0) >> 6]
-									ofs += 1
-								if(maxw > 1 + l * 4):
-									dst[ofs] = rgb[(pixels[n] & 0x30) >> 4]
-									ofs += 1
-								if(maxw > 2 + l * 4):
-									dst[ofs] = rgb[(pixels[n] & 0x0c) >> 2]
-									ofs += 1
-								if(maxw > 3 + l * 4):
-									dst[ofs] = rgb[(pixels[n] & 0x03) >> 0]
-									ofs += 1
+				x0 = x & 0x03
+				x1 = (x >> 2) & 0x01
+				x2 = x >> 3
 
-		num_rows = 0
-		num_tiles = 0
-		for i in range(w * h):
-			pixel = dst[i]
-			
-			tile_offset = i % 16 # where are we in the tile?
-			if(i % 16 == 0 and i != 0): # if we are at the end of a tile...
-				num_tiles += 1 # ...move on to the next one!
+				y0 = y & 0x03
+				y1 = (y >> 2) & 0x01
+				y2 = y >> 3
 
-			if(num_tiles != 0 and (w / 4) == num_tiles): # if we are at the end of a row of tiles...
-				num_tiles = 0 # ...reset!
-				tile_offset = 0 # ...reset!
-				num_rows += 4 # plus four because each tile is four high
-				
-			x = (tile_offset % 4) + (num_tiles * 4) # num_tiles part to not overwrite tiles earlier in this row, tile_offset to find how far on the x we are in this row in the tile
-			y = (num_rows) + (tile_offset / 4) # num_rows to not overwrite tiles above, tile_offset to show how many rows in the current tile we are
-			
-			#print "tile %u of %u on row %u of %u (%u, %u): 0x%08x" % (num_tiles + 1, w / 4, (num_rows / 4) + 1, h / 4, x, y, pixel)
-			
-			r = (pixel & 0xFF000000) >> 24
-			g = (pixel & 0x00FF0000) >> 16
-			b = (pixel & 0x0000FF00) >> 8
-			a = (pixel & 0x000000FF) >> 0
-		
-			out[y][(x * 4) + 0] = r
-			out[y][(x * 4) + 1] = g
-			out[y][(x * 4) + 2] = b
-			out[y][(x * 4) + 3] = a		
-		return out
+				off = (8*x1) + (16*y1) + (32*x2) + (4*ww*y2)
+
+				c[0] = Struct.uint16(data[off+0:off+2], endian='>')
+				c[1] = Struct.uint16(data[off+2:off+4], endian='>')
+				if c[0] > c[1]:
+					c[2] = avg(2, 1, c[0], c[1])
+					c[3] = avg(1, 2, c[0], c[1])
+				else:
+					c[2] = avg(1, 1, c[0], c[1])
+					c[3] = 0
+
+				px = Struct.uint32(data[off+4:off+8], endian='>')
+				ix = x0 + ( 4 * y0 )
+				raw = c[(px >> (30 - (2 * ix))) & 0x03]
+
+				pix[0] = (raw >> 8) & 0xf8
+				pix[1] = (raw >> 3) & 0xf8
+				pix[2] = (raw << 3) & 0xf8
+
+				temp[outp] = (pix[0] <<0) | (pix[1] << 8) | (pix[2] << 16) | (255 << 24)
+				outp += 1
+		return ''.join(Struct.uint32(p) for p in temp)
 	def CI14X2(self, (w, h), jar):
-		out = [[0 for i in range(w * 4)] for i in range(h)]
+		out = [0 for i in range(w * h)]
 		i = 0
 		for y in range(0, h, 4):
 			for x in range(0, w, 4):
@@ -627,8 +898,6 @@ class TPL():
 						b = (pal[pixel & 0x3FFF] & 0x0000FF00) >> 8
 						a = (pal[pixel & 0x3FFF] & 0x000000FF) >> 0
 
-						out[y1][(x1 * 4) + 0] = r
-						out[y1][(x1 * 4) + 1] = g
-						out[y1][(x1 * 4) + 2] = b
-						out[y1][(x1 * 4) + 3] = a
-		return out
+						rgba = (r<<0) | (g<<8) | (b<<16) | (a<<24)
+						out[y1*w+x1] = rgba
+		return ''.join(Struct.uint32(p) for p in out)
