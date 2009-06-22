@@ -325,6 +325,14 @@ class uidsys:
 			uiddat.uid = 0x1000
 			uidfp.write(uiddat.pack())
 			uidfp.close()
+		if((os.path.isfile(uid)) and (len(open(uid, "rb").read()) == 0)):
+			uidfp = open(uid, "wb")
+			uiddat = self.UIDSYSStruct()
+			uiddat.titleid = 0x0000000100000002
+			uiddat.padding = 0
+			uiddat.uid = 0x1000
+			uidfp.write(uiddat.pack())
+			uidfp.close()
 
 	def getUIDForTitle(self, title):
 		uidfp = open(self.f, "rb")
@@ -341,7 +349,7 @@ class uidsys:
 		for key, value in uidict.iteritems():
 			if(hexdump(key, "") == ("%016X" % title)):
 				return value
-		return None
+		return self.addTitle(title)
 
 	def getTitle(self, uid):
 		uidfp = open(self.f, "rb")
@@ -409,9 +417,11 @@ class iplsave:
 			self.unk2 = Struct.string(0x20)
 			self.md5 = Struct.string(0x10)
 
-	def __init__(self, f):
+	def __init__(self, f, nand = False):
 		self.f = f
 		if(not os.path.isfile(f)):
+			if(nand != False):
+				nand.newFile("/title/00000001/00000002/data/iplsave.bin", "rw----", 0x0001, 0x0000000100000002)
 			baseipl_h = self.IPLSAVE_Header
 			baseipl_ent = self.IPLSAVE_Entry
 			baseipl_ent.type1 = 0
@@ -436,7 +446,7 @@ class iplsave:
 				fp.write(a2b_hex("%016X" % baseipl_ent.titleid))
 			fp.write(baseipl_h.unk2)
 			fp.close()
-			self.UpdateMD5()
+			self.updateMD5()
 
 	def updateMD5(self):
 		"""Updates the MD5 hash in the iplsave.bin file. Used by other functions here."""

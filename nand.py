@@ -16,32 +16,116 @@ class NAND:
 		self.f = f
 		if(not os.path.isdir(f)):
 			os.mkdir(f)
-		if(not os.path.isdir(f + "/import")):
-			os.mkdir(f + "/import")
-		if(not os.path.isdir(f + "/meta")):
-			os.mkdir(f + "/meta")
-		if(not os.path.isdir(f + "/shared1")):
-			os.mkdir(f + "/shared1")
-		if(not os.path.isdir(f + "/shared2")):
-			os.mkdir(f + "/shared2")
-		if(not os.path.isdir(f + "/sys")):
-			os.mkdir(f + "/sys")
-		if(not os.path.isfile(f + "/sys/cc.sys")):
-			open(f + "/sys/cc.sys", "wb").close()
-		if(not os.path.isfile(f + "/sys/cert.sys")):
-			open(f + "/sys/cert.sys", "wb").close()
-		if(not os.path.isfile(f + "/sys/space.sys")):
-			open(f + "/sys/space.sys", "wb").close()
-		if(not os.path.isdir(f + "/ticket")):
-			os.mkdir(f + "/ticket")
-		if(not os.path.isdir(f + "/title")):
-			os.mkdir(f + "/title")
-		if(not os.path.isdir(f + "/tmp")):
-			os.mkdir(f + "/tmp")
+
+		self.perms = f + "/permission.txt"
+		if(not os.path.isfile(self.perms)):
+			open(self.perms, "wb").close()
+		self.newDirectory("/sys", "rwrw--", 0)
+		self.newFile("/sys/uid.sys", "rwrw--", 0)
+		self.UID = uidsys(self.f + "/sys/uid.sys")
+		self.newDirectory("/meta", "rwrwrw", 0x0001, 0x0000000100000002)
+		
+		self.newDirectory("/import", "rwrw--", 0x0000)
+		self.newDirectory("/shared1", "rwrw--", 0x0000)
+		self.newDirectory("/shared2", "rwrwrw", 0x0000)
+		self.newFile("/sys/cc.sys", "rwrw--", 0x0000)
+		self.newFile("/sys/cert.sys", "rwrwr-", 0x0000)
+		self.newFile("/sys/space.sys", "rwrw--", 0x0000)
+		self.newDirectory("/ticket", "rwrw--", 0x0000)
+		self.newDirectory("/title", "rwrwr-", 0x0000)
+		self.newDirectory("/tmp", "rwrwrw", 0x0000)
 		self.ES = ESClass(self)
 		self.ISFS = ISFSClass(self)
-		self.UID = uidsys(self.f + "/sys/uid.sys")
 		self.contentmap = ContentMap(self.f + "/shared1/content.map")
+
+	def hasPermissionEntry(self, dir):
+		pfp = open(self.perms, "rb")
+		data = pfp.read()
+		pfp.close()
+		ret = data.find(dir)
+		if(ret == -1):
+			return 0
+		return 1
+
+	def removePermissionEntry(self, dir):
+		pfp = open(self.perms, "rb")
+		data = pfp.read()
+		pfp.close()
+		ret = data.find(dir)
+		if(ret == -1):
+			return 0
+		newlineloc = -1
+		for i in range(ret):
+			if(data.startswith("\n", i)):
+				newlineloc = i + 1
+		endloc = data.find("\n", newlineloc)
+		pfp = open(self.perms, "rb")
+		data = pfp.read(newlineloc)
+		pfp.seek(endloc + 1)
+		data += pfp.read()
+		pfp.close()
+		pfp = open(self.perms, "wb")
+		pfp.write(data)
+		pfp.close()
+		return 1
+
+	def addPermissionEntry(self, uid, permissions, dir, groupid):
+		pfp = open(self.perms, "rb")
+		data = pfp.read()
+		pfp.close()
+		data += "%s " % permissions
+		if(uid == None):
+			print "UID is None!\n"
+		try:
+			data += hexdump(uid, "")
+			data += " "
+		except:
+			try:
+				data += "%04X " % uid
+			except:
+				print "UID type couldn't be confirmed..."
+				return
+		try:
+			data += hexdump(groupid, "")
+			data += " "
+		except:
+			try:
+				data += "%04X " % groupid
+			except:
+				print "GID type couldn't be confirmed..."
+				return
+		data += "%s\n" % dir
+		pfp = open(self.perms, "wb")
+		pfp.write(data)
+		pfp.close()
+		
+	def newDirectory(self, dir, perms, groupid, permtitle = 0):
+		"""Creates a new directory in the NAND filesystem and adds a permissions entry."""
+		if(not self.hasPermissionEntry(dir)):
+			if(permtitle == 0):
+				if(not os.path.isdir(self.f + dir)):
+					os.mkdir(self.f + dir)
+				self.addPermissionEntry(0, "d" + perms, dir, groupid)
+			else:
+				if(not os.path.isdir(self.f + dir)):
+					os.mkdir(self.f + dir)
+				self.addPermissionEntry(self.getUIDForTitleFromUIDSYS(permtitle), "d" + perms, dir, groupid)
+
+	def newFile(self, fil, perms, groupid, permtitle = 0):
+		"""Creates a new file in the NAND filesystem and adds a permissions entry."""
+		if(not self.hasPermissionEntry(fil)):
+			if(permtitle == 0):
+				if(not os.path.isfile(self.f + fil)):
+					open(self.f + fil, "wb").close()
+				self.addPermissionEntry(0, "-" + perms, fil, groupid)
+			else:
+				if(not os.path.isfile(self.f + fil)):
+					open(self.f + fil, "wb").close()
+				self.addPermissionEntry(self.getUIDForTitleFromUIDSYS(permtitle), "-" + perms, fil, groupid)
+	def removeFile(self, fil):
+		"""Deletes a file, and removes the permissions entry."""
+		os.remove(self.f + fil)
+		self.removePermissionEntry(fil)
 
 	def getContentByHashFromContentMap(self, hash):
 		"""Gets the filename of a shared content with SHA1 hash ``hash''. This includes the NAND prefix."""
@@ -73,11 +157,12 @@ class NAND:
 
 	def getUIDForTitleFromUIDSYS(self, title):
 		"""Gets the UID for title ID ``title'' from the uid.sys file."""
-		return self.UID.getUIDForTitle(uid)
+		ret = self.UID.getUIDForTitle(title)
+		return ret
 
 	def addTitleToMenu(self, tid):
 		"""Adds a title to the System Menu."""
-		a = iplsave(self.f + "/title/00000001/00000002/data/iplsave.bin")
+		a = iplsave(self.f + "/title/00000001/00000002/data/iplsave.bin", self)
 		type = 0
 		if(((tid & 0xFFFFFFFFFFFFFF00) == 0x0001000248414300) or ((tid & 0xFFFFFFFFFFFFFF00) == 0x0001000248414200)):
 			type = 1
@@ -85,12 +170,12 @@ class NAND:
 
 	def addDiscChannelToMenu(self, x, y, page, movable):
 		"""Adds the disc channel to the System Menu."""
-		a = iplsave(self.f + "/title/00000001/00000002/data/iplsave.bin")
+		a = iplsave(self.f + "/title/00000001/00000002/data/iplsave.bin", self)
 		a.addDisc(x, y, page, movable)
 
 	def deleteTitleFromMenu(self, tid):
 		"""Deletes a title from the System Menu."""
-		a = iplsave(self.f + "/title/00000001/00000002/data/iplsave.bin")
+		a = iplsave(self.f + "/title/00000001/00000002/data/iplsave.bin", self)
 		a.deleteTitle(tid)
 
 	def importTitle(self, prefix, tmd, tik, add_to_menu = True, is_decrypted = False, result_decrypted = False):
@@ -167,16 +252,12 @@ class ESClass:
 		"""Gets cnt amount of shared content hashes"""
 		return self.nand.getContentHashesFromContentMap(cnt)
 	def AddTitleStart(self, tmd, certs, crl, is_decrypted = False, result_decrypted = True, use_version = False):
-		if(not os.path.isdir(self.f + "/title/%08x" % (tmd.tmd.titleid >> 32))):
-			os.mkdir(self.f + "/title/%08x" % (tmd.tmd.titleid >> 32))
-		if(not os.path.isdir(self.f + "/title/%08x/%08x" % (tmd.tmd.titleid >> 32, tmd.tmd.titleid & 0xFFFFFFFF))):
-			os.mkdir(self.f + "/title/%08x/%08x" % (tmd.tmd.titleid >> 32, tmd.tmd.titleid & 0xFFFFFFFF))
-		if(not os.path.isdir(self.f + "/title/%08x/%08x/content" % (tmd.tmd.titleid >> 32, tmd.tmd.titleid & 0xFFFFFFFF))):
-			os.mkdir(self.f + "/title/%08x/%08x/content" % (tmd.tmd.titleid >> 32, tmd.tmd.titleid & 0xFFFFFFFF))
-		if(not os.path.isdir(self.f + "/title/%08x/%08x/data" % (tmd.tmd.titleid >> 32, tmd.tmd.titleid & 0xFFFFFFFF))):
-			os.mkdir(self.f + "/title/%08x/%08x/data" % (tmd.tmd.titleid >> 32, tmd.tmd.titleid & 0xFFFFFFFF))	
-		if(not os.path.isdir(self.f + "/ticket/%08x" % (tmd.tmd.titleid >> 32))):
-			os.mkdir(self.f + "/ticket/%08x" % (tmd.tmd.titleid >> 32))
+		self.nand.addTitleToUIDSYS(tmd.tmd.titleid)
+		self.nand.newDirectory("/title/%08x" % (tmd.tmd.titleid >> 32), "rwrwr-", 0x0000)
+		self.nand.newDirectory("/title/%08x/%08x" % (tmd.tmd.titleid >> 32, tmd.tmd.titleid & 0xFFFFFFFF), "rwrwr-", 0x0000)
+		self.nand.newDirectory("/title/%08x/%08x/content" % (tmd.tmd.titleid >> 32, tmd.tmd.titleid & 0xFFFFFFFF), "rwrw--", 0x0000)
+		self.nand.newDirectory("/title/%08x/%08x/data" % (tmd.tmd.titleid >> 32, tmd.tmd.titleid & 0xFFFFFFFF), "rw----", tmd.tmd.group_id, tmd.tmd.titleid)
+		self.nand.newDirectory("/ticket/%08x" % (tmd.tmd.titleid >> 32), "rwrw--", 0x0000)
 		self.workingcids = array.array('L')
 		self.wtitleid = tmd.tmd.titleid
 		self.is_decrypted = is_decrypted
@@ -231,13 +312,13 @@ class ESClass:
 	def AddTitleCancel(self):
 		"""Cancels adding a title (deletes the tmp files and resets status)."""
 		if(self.ticketadded):
-			os.remove(self.f + "/tmp/title.tik")
+			self.nand.removeFile("/tmp/title.tik")
 			self.ticketadded = 0
 		if(self.tmdadded):
-			os.remove(self.f + "/tmp/title.tmd")
+			self.nand.removeFile("/tmp/title.tmd")
 			self.tmdadded = 0
 		for i in range(self.workingcidcnt):
-			os.remove(self.f + "/tmp/%08x.app" % self.workingcids[i])
+			self.nand.removeFile("/tmp/%08x.app" % self.workingcids[i])
 		self.workingcidcnt = 0
 		self.workingcid = None
 	def AddTitleFinish(self):
@@ -256,35 +337,38 @@ class ESClass:
 				return -42
 			fp = open(self.f + "/tmp/%08x.app" % self.workingcids[i], "rb")
 			if(contents[idx].type == 0x0001):
-				filestr = self.f + "/title/%08x/%08x/content/%08x.app" % (self.wtitleid >> 32, self.wtitleid & 0xFFFFFFFF, self.workingcids[i])
+				filestr = "/title/%08x/%08x/content/%08x.app" % (self.wtitleid >> 32, self.wtitleid & 0xFFFFFFFF, self.workingcids[i])
 			elif(contents[idx].type == 0x8001):
-				num = self.nand.addHashToMap(contents[idx].hash)
-				filestr = self.f + "/shared1/%08x.app" % num
-			outfp = open(filestr, "wb")
+				num = self.nand.addHashToContentMap(contents[idx].hash)
+				filestr = "/shared1/%08x.app" % num
+			self.nand.newFile(filestr, "rwrw--", 0x0000)
+			outfp = open(self.f + filestr, "wb")
 			data = fp.read()
 			titlekey = tik.getTitleKey()
 			if(self.is_decrypted):
 				tmpdata = data
 			else:
-				tmpdata = Crypto().DecryptContent(titlekey, contents[idx].index, data)
-			if(Crypto().ValidateSHAHash(tmpdata, contents[idx].hash) == 0):
+				tmpdata = Crypto().decryptContent(titlekey, contents[idx].index, data)
+			if(Crypto().validateSHAHash(tmpdata, contents[idx].hash) == 0):
 				"Decryption failed! SHA1 mismatch."
 				return -44
 			if(self.result_decrypted != True):
 				if(self.is_decrypted):
-					tmpdata = Crypto().EncryptContent(titlekey, contents[idx].index, data)
+					tmpdata = Crypto().encryptContent(titlekey, contents[idx].index, data)
 				else:
 					tmpdata = data
 					
 			fp.close()
 			outfp.write(tmpdata)
 			outfp.close()
-		self.nand.addTitleToUIDSYS(self.wtitleid)
 		if(self.tmdadded and self.use_version):
+			self.nand.newFile("/title/%08x/%08x/content/title.tmd.%d" % (self.wtitleid >> 32, self.wtitleid & 0xFFFFFFFF, tmd.tmd.title_version), "rwrw--", 0x0000)
 			tmd.rawdump(self.f + "/title/%08x/%08x/content/title.tmd.%d" % (self.wtitleid >> 32, self.wtitleid & 0xFFFFFFFF, tmd.tmd.title_version))
 		elif(self.tmdadded):
+			self.nand.newFile("/title/%08x/%08x/content/title.tmd" % (self.wtitleid >> 32, self.wtitleid & 0xFFFFFFFF), "rwrw--", 0x0000)
 			tmd.rawdump(self.f + "/title/%08x/%08x/content/title.tmd" % (self.wtitleid >> 32, self.wtitleid & 0xFFFFFFFF))
 		if(self.ticketadded):
+			self.nand.newFile("/ticket/%08x/%08x.tik" % (self.wtitleid >> 32, self.wtitleid & 0xFFFFFFFF), "rwrw--", 0x0000)
 			tik.rawdump(self.f + "/ticket/%08x/%08x.tik" % (self.wtitleid >> 32, self.wtitleid & 0xFFFFFFFF))
 		self.AddTitleCancel()
 		return 0
