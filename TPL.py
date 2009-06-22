@@ -14,9 +14,8 @@ class TPL():
 	
 	Currently supported are the following formats to convert from TPL: RGBA8, RGB565, RGB5A3, CI4, CI8, I4, I8, IA4, IA8. Currently not supported are: CMP, CI14X2.
 	
-	Currently support to convert to TPL: RGBA8. Currently not supported, and are being worked on, are: RGB565, RGB5A3, I4, I8, IA4, IA8, CI4, CI8, CMP, CI14X2.
+	Currently support to convert to TPL: RGBA8. Currently not supported are: RGB565, RGB5A3, I4, I8, IA4, IA8, CI4, CI8, CMP, CI14X2."""
 	
-	There are still some bugs in either the RGBA8 conversion to or from TPL. This causes stretched and distorted images with some files and images dimensions."""
 	
 	class TPLHeader(Struct):
 		__endian__ = Struct.BE
