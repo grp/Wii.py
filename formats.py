@@ -1,12 +1,109 @@
 import os, hashlib, struct, subprocess, fnmatch, shutil, urllib, array
 from binascii import *
 
+from hashlib import md5
 from Crypto.Cipher import AES
 from Struct import Struct
 from struct import *
 
 from common import *
 from title import *
+
+class LOC:
+	class locHeader(Struct):
+		def __format__(self):
+			self.magic = Struct.string(4)
+			self.md5 = Struct.string(10)
+			self.unknown = Struct.string(4)
+		
+	def __init__(self, f):
+		self.sdKey = '\xab\x01\xb9\xd8\xe1\x62\x2b\x08\xaf\xba\xd8\x4d\xbf\xc2\xa5\x5d'
+		self.sdIv = '\x21\x67\x12\xe6\xaa\x1f\x68\x9f\x95\xc5\xa2\x23\x24\xdc\x6a\x98'
+		
+		self.titles = []
+		self.usedBlocks = 0
+		self.freeBlocks = 0
+		
+		try:
+			self.fp = open(f, 'r+b')
+		except:
+			self.fp = open(f, 'w+b')
+			
+			locHdr = self.locHeader()
+			
+			locHdr.magic = '\x73\x64\x61\x6C'
+			locHdr.md5 = '\x0e\x65\x37\x81\x99\xbe\x45\x17\xab\x06\xec\x22\x45\x1a\x57\x93'
+			locHdr.unknown = '\xA1\x6C\x2A\xEB'
+			
+			locHdr.md5 = hashlib().md5(locHdr.pack()).digest()
+			
+			self.fp.write(locHdr.pack())
+			self.fp.write('\x00\x00\x00\x00' * 240)
+			self.fp.write('\x00' * 12)
+			
+			self.freeBlocks = 240
+			return
+			
+		plainBuffer = Crypto().decryptData(self.sdKey, self.sdIv, self.fp.read(), False)	
+			
+		self.hdr = self.locHeader().unpack(plainBuffer[:0x14])
+		
+		for x in range(240):
+			self.titles.append(plainBuffer[0x14 + x * 4:0x14 + (x + 1) * 4])
+			if self.titles[x] == '\x00\x00\x00\x00':
+				self.freeBlocks += 1
+				
+		self.usedBlocks = 240 - self.freeBlocks 
+		
+	def __str__(self):
+		out = ''
+		out += 'Used %i blocks out of 240\n\n' % self.usedBlocks
+		for x in range(240):
+			if self.titles[x] == '\x00\x00\x00\x00':
+				out += 'Block %i on page %i is empty\n' % (x, x / 12)
+			else:
+				out += 'Block %i on page %i hold title %s\n' % (x, x / 12, self.titles[x])
+				
+		return out
+				
+	def getFreeBlocks(self):
+		return self.freeBlocks 
+		
+	def getUsedBlocks(self):
+		return self.usedBlocks
+		
+	def isBlockFree(self, x, y, page):
+		if self.titles[((x + (y * 4) + (page * 12)))] == '\x00\x00\x00\x00':
+			return 1
+			
+		return 0
+			
+	def isTitleInList(self, title):
+		try:
+			return self.titles.index(title.upper())
+		except:
+			return 0
+			
+	def getTitle(self, x, y, page):
+		if x > 3 or y > 2 or page > 20:
+			raise Exception('Out of bounds')
+			
+		return self.titles[((x + (y * 4) + (page * 12)))]
+		
+	def setTitle(self, x, y, page, element):
+		if x > 3 or y > 2 or page > 20 or len(element) > 4:
+			raise Exception('Out of bounds')
+			
+		self.titles[((x + (y * 4) + (page * 12)))] = element.upper()
+		self.fp.seek(0x14)
+		
+		for x in range(240):
+			self.fp.write(Crypto().encryptData(self.sdKey, self.sdIv, self.titles[x], True))
+			
+		self.fp.write('\x00' * 12)
+			
+	def delTitle(self, x, y, page):
+		self.setTitle(x, y, page, '\x00\x00\x00\x00')
 
 class CONF:
 	"""This class deals with setting.txt which holds some important information like region and serial number """
