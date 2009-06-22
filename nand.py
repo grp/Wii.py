@@ -648,13 +648,17 @@ class ESClass:
 				return tmd.contents[i].index
 		return None
 	def Identify(self, id, version=0):
-		path = "/title/%08x/%08x/content/title.tmd" % (id >> 32, id & 0xFFFFFFFF)
+		if(not os.path.isfile(self.f + "/ticket/%08x/%08x.tik" % (id >> 32, id & 0xFFFFFFFF))):
+			return None
+		tik = Ticket(self.f + "/ticket/%08x/%08x.tik" % (id >> 32, id & 0xFFFFFFFF))
+		titleid = tik.titleid
+		path = "/title/%08x/%08x/content/title.tmd" % (titleid >> 32, titleid & 0xFFFFFFFF)
 		if(version):
 			path += ".%d" % version
 		if(not os.path.isfile(self.f + path)):
 			return None
-		tmd = TMD(self.f + path)		
-		self.title = id
+		tmd = TMD(self.f + path)
+		self.title = titleid
 		self.group = tmd.tmd.group_id
 		return self.title
 	def GetTitleID(self):
