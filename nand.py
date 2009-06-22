@@ -467,19 +467,62 @@ class ISFSClass:
 	def _setes(self):
 		self.ES = self.nand.ES
 
+	def _checkPerms(self, mode, uid, gid, own, grp, oth):
+		if(uid == self.ES.title):
+			if(own & mode):
+				return 1
+		elif(gid == self.ES.group):
+			if(grp & mode):
+				return 1
+		elif(oth & mode):
+			return 1
+		else:
+			return 0
+
 	def Open(self, file, mode):
 		if(not os.path.isfile(self.f + file)):
 			return None
+		modev = 0
+		if(mode.find("r") != -1):
+			modev = 1
+		elif(mode.find("w") != -1):
+			modev = 2
+		if(mode.find("+") != -1):
+			modev = 3
+		uid = self.nand.getFilePermissionUID(file)
+		gid = self.nand.getFilePermissionGID(file)
+		own = self.nand.getFilePermissionOwner(file)
+		grp = self.nand.getFilePermissionGroup(file)
+		oth = self.nand.getFilePermissionOthers(file)
+		if(self._checkPerms(modev, uid, gid, own, grp, oth) == 0):
+			return -41
 		return self.ISFSFP(self.f + file, mode)
 
 	def Close(self, fp):
 		fp.close()
 
 	def Delete(self, file):
+		uid = self.nand.getFilePermissionUID(file)
+		gid = self.nand.getFilePermissionGID(file)
+		own = self.nand.getFilePermissionOwner(file)
+		grp = self.nand.getFilePermissionGroup(file)
+		oth = self.nand.getFilePermissionOthers(file)
+		if(self._checkPerms(2, uid, gid, own, grp, oth) == 0):
+			return -41
 		self.nand.removeFile(file)
+		return 0
 
 	def CreateFile(self, filename, perms):
+		dirabove = filename
+		uid = self.nand.getFilePermissionUID(dirabove)
+		gid = self.nand.getFilePermissionGID(dirabove)
+		own = self.nand.getFilePermissionOwner(dirabove)
+		grp = self.nand.getFilePermissionGroup(dirabove)
+		oth = self.nand.getFilePermissionOthers(dirabove)
+		if(self._checkPerms(2, uid, gid, own, grp, oth) == 0):
+			return -41
 		self.nand.newFile(filename, perms, self.ES.group, self.ES.title)
+		return 0
 
 	def Write(self, fp, data):
 		return fp.write(data)
@@ -491,7 +534,16 @@ class ISFSClass:
 		return fp.seek(where, whence)
 
 	def CreateDir(self, dirname, perms):
+		dirabove = dirname
+		uid = self.nand.getFilePermissionUID(dirabove)
+		gid = self.nand.getFilePermissionGID(dirabove)
+		own = self.nand.getFilePermissionOwner(dirabove)
+		grp = self.nand.getFilePermissionGroup(dirabove)
+		oth = self.nand.getFilePermissionOthers(dirabove)
+		if(self._checkPerms(2, uid, gid, own, grp, oth) == 0):
+			return -41
 		self.nand.newDirectory(dirname, perms, self.ES.group, self.ES.title)
+		return 0
 
 	def GetAttr(self, filename):	# Wheeee, stupid haxx to put all the numbers into one return value!
 		ret = self.nand.getFilePermissionUID(filename)
@@ -518,10 +570,12 @@ class ISFSClass:
 		own = self.nand.getFilePermissionOwner(fileold)
 		grp = self.nand.getFilePermissionGroup(fileold)
 		oth = self.nand.getFilePermissionOthers(fileold)
+		if(self._checkPerms(2, uid, gid, own, grp, oth) == 0):
+			return -41
 		fld = self.nand.isFileDirectory(fileold)
 		if(fld):
 			print "Directory moving is busted ATM. Will fix laterz.\n"
-			return
+			return -40
 		fp = self.Open(fileold, "rb")
 		data = fp.Read()
 		fp.close()
@@ -555,13 +609,22 @@ class ISFSClass:
 		fp.write(data)
 		fp.close()
 		self.Delete(fileold)
-
+		return 0
+		
 	def SetAttr(self, filename, uid, gid=0, owner=0, group=0, others=0):
+		uidx = self.nand.getFilePermissionUID(filename)
+		gidx = self.nand.getFilePermissionGID(filename)
+		own = self.nand.getFilePermissionOwner(filename)
+		grp = self.nand.getFilePermissionGroup(filename)
+		oth = self.nand.getFilePermissionOthers(filename)
+		if(self._checkPerms(2, uidx, gidx, own, grp, oth) == 0):
+			return -41
 		self.nand.setFilePermissionUID(filename, uid)
 		self.nand.setFilePermissionGID(filename, gid)
 		self.nand.setFilePermissionOwner(filename, owner)
 		self.nand.setFilePermissionGroup(filename, group)
 		self.nand.setFilePermissionOthers(filename, others)
+		return 0
 
 class ESClass:
 	"""This class performs all services relating to titles installed on the Wii. It is a clone of the libogc ES interface.
@@ -584,23 +647,42 @@ class ESClass:
 			if(cid == tmd.contents[i].cid):
 				return tmd.contents[i].index
 		return None
+	def Identify(self, id, version=0):
+		if(not os.path.isfile(self.f + "/ticket/%08x/%08x.tik" % (id >> 32, id & 0xFFFFFFFF))):
+			return None
+		tik = Ticket(self.f + "/ticket/%08x/%08x.tik" % (id >> 32, id & 0xFFFFFFFF))
+		titleid = tik.titleid
+		path = "/title/%08x/%08x/content/title.tmd" % (titleid >> 32, titleid & 0xFFFFFFFF)
+		if(version):
+			path += ".%d" % version
+		if(not os.path.isfile(self.f + path)):
+			return None
+		tmd = TMD(self.f + path)
+		self.title = titleid
+		self.group = tmd.tmd.group_id
+		return self.title
+	def GetTitleID(self):
+		return self.title
 	def GetDataDir(self, titleid):
 		"""When passed a titleid, it will get the Titles data directory. If there is no title associated with titleid, it will return None."""
 		if(not os.path.isdir(self.f + "/title/%08x/%08x/data" % (titleid >> 32, titleid & 0xFFFFFFFF))):
 			return None
 		return self.f + "/title/%08x/%08x/data" % (titleid >> 32, titleid & 0xFFFFFFFF)
-	def GetStoredTMD(self, titleid, version):
+	def GetStoredTMD(self, titleid, version=0):
 		"""Gets the TMD for the specified titleid and version"""
-		if(not os.path.isfile(self.f + "/title/%08x/%08x/content/title.tmd.%d" % (titleid >> 32, titleid & 0xFFFFFFFF, version))):
+		path = "/title/%08x/%08x/content/title.tmd" % (titleid >> 32, titleid & 0xFFFFFFFF)
+		if(version):
+			path += ".%d" % version
+		if(not os.path.isfile(self.f + path)):
 			return None
-		return TMD(self.f + "/title/%08x/%08x/content/title.tmd.%d" % (titleid >> 32, titleid & 0xFFFFFFFF, version))
-	def GetTitleContentsCount(self, titleid, version):
+		return TMD(self.f + path)
+	def GetTitleContentsCount(self, titleid, version=0):
 		"""Gets the number of contents the title with the specified titleid and version has."""
 		tmd = self.GetStoredTMD(titleid, version)
 		if(tmd == None):
 			return 0
 		return tmd.tmd.numcontents
-	def GetTitleContents(self, titleid, version, count):
+	def GetTitleContents(self, titleid, count, version=0):
 		"""Returns a list of content IDs for title id ``titleid'' and version ``version''. It will return, at maximum, ``count'' entries."""
 		tmd = self.GetStoredTMD(titleid, version)
 		if(tmd == None):
