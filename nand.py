@@ -36,6 +36,8 @@ class NAND:
 		self.newDirectory("/tmp", "rwrwrw", 0x0000)
 		self.ES = ESClass(self)
 		self.ISFS = ISFSClass(self)
+		self.ES._setisfs()
+		self.ISFS._setes()
 		self.contentmap = ContentMap(self.f + "/shared1/content.map")
 
 	def hasPermissionEntry(self, dir):
@@ -68,6 +70,194 @@ class NAND:
 		pfp.write(data)
 		pfp.close()
 		return 1
+
+	def _getFilePermissionBase(self, dir, loc):
+		pfp = open(self.perms, "rb")
+		data = pfp.read()
+		pfp.close()
+		ret = data.find(dir)
+		if(ret == -1):
+			return 0
+		newlineloc = 0
+		for i in range(ret):
+			if(data.startswith("\n", i)):
+				newlineloc = i + 1
+		endloc = data.find("\n", newlineloc)
+		pfp = open(self.perms, "rb")
+		if(loc > 0):
+			loc *= 2
+		pfp.seek(newlineloc + 1 + loc)
+		pdata = pfp.read(2)
+		pfp.close()
+		return pdata
+
+	def getFilePermissionOwner(self, dir):
+		pdata = self._getFilePermissionBase(dir, 0)
+		pval = 0
+		if(pdata[0] == "r"):
+			pval += 1
+		if(pdata[1] == "w"):
+			pval += 2
+		return pval
+
+	def getFilePermissionGroup(self, dir):
+		pdata = self._getFilePermissionBase(dir, 1)
+		pval = 0
+		if(pdata[0] == "r"):
+			pval += 1
+		if(pdata[1] == "w"):
+			pval += 2
+		return pval
+
+	def getFilePermissionOthers(self, dir):
+		pdata = self._getFilePermissionBase(dir, 2)
+		pval = 0
+		if(pdata[0] == "r"):
+			pval += 1
+		if(pdata[1] == "w"):
+			pval += 2
+		return pval
+
+	def getFilePermissionPerms(self, dir):
+		pfp = open(self.perms, "rb")
+		data = pfp.read()
+		pfp.close()
+		ret = data.find(dir)
+		if(ret == -1):
+			return 0
+		newlineloc = 0
+		for i in range(ret):
+			if(data.startswith("\n", i)):
+				newlineloc = i + 1
+		endloc = data.find("\n", newlineloc)
+		pfp = open(self.perms, "rb")
+		pfp.seek(newlineloc + 1)
+		pdata = pfp.read(6)
+		pfp.close()
+		return pdata
+
+	def _setFilePermissionBase(self, dir, loc, val):
+		pfp = open(self.perms, "rb")
+		data = pfp.read()
+		pfp.close()
+		ret = data.find(dir)
+		if(ret == -1):
+			return 0
+		newlineloc = 0
+		for i in range(ret):
+			if(data.startswith("\n", i)):
+				newlineloc = i + 1
+		endloc = data.find("\n", newlineloc)
+		pfp = open(self.perms, "rb")
+		if(loc > 0):
+			loc *= 2
+		pfp.seek(newlineloc + 1 + loc)
+		pfp.write(val)
+		pfp.close()
+
+	def setFilePermissionOwner(self, dir, val):
+		out = ""
+		if(val & 1):
+			out += "r"
+		if(val & 2):
+			out += "w"
+		self._setFilePermissionBase(dir, 0, out)
+
+	def setFilePermissionGroup(self, dir):
+		out = ""
+		if(val & 1):
+			out += "r"
+		if(val & 2):
+			out += "w"
+		self._setFilePermissionBase(dir, 1, out)
+
+	def setFilePermissionOthers(self, dir):
+		out = ""
+		if(val & 1):
+			out += "r"
+		if(val & 2):
+			out += "w"
+		self._setFilePermissionBase(dir, 2, out)
+
+	def isFileDirectory(self, dir):
+		pdata = self._getFilePermissionBase(dir, -1)
+		pval = 0
+		if(pdata[0] == "d"):
+			pval += 1
+		return pval
+		
+
+	def getFilePermissionUID(self, dir):
+		pfp = open(self.perms, "rb")
+		data = pfp.read()
+		pfp.close()
+		ret = data.find(dir)
+		if(ret == -1):
+			return 0
+		newlineloc = -1
+		for i in range(ret):
+			if(data.startswith("\n", i)):
+				newlineloc = i + 1
+		endloc = data.find("\n", newlineloc)
+		pfp = open(self.perms, "rb")
+		pfp.seek(newlineloc + 8)
+		uidata = pfp.read(4)
+		pfp.close()
+		return int(uidata, 16)
+
+	def getFilePermissionGID(self, dir):
+		pfp = open(self.perms, "rb")
+		data = pfp.read()
+		pfp.close()
+		ret = data.find(dir)
+		if(ret == -1):
+			return 0
+		newlineloc = -1
+		for i in range(ret):
+			if(data.startswith("\n", i)):
+				newlineloc = i + 1
+		endloc = data.find("\n", newlineloc)
+		pfp = open(self.perms, "rb")
+		pfp.seek(newlineloc + 13)
+		gidata = pfp.read(4)
+		pfp.close()
+		return int(gidata, 16)
+
+	def setFilePermissionUID(self, dir, val):
+		pfp = open(self.perms, "rb")
+		data = pfp.read()
+		pfp.close()
+		ret = data.find(dir)
+		if(ret == -1):
+			return 0
+		newlineloc = -1
+		for i in range(ret):
+			if(data.startswith("\n", i)):
+				newlineloc = i + 1
+		endloc = data.find("\n", newlineloc)
+		pfp = open(self.perms, "rb")
+		pfp.seek(newlineloc + 8)
+		uidata = pfp.write("%04X" % val)
+		pfp.close()
+		return int(uidata, 16)
+
+	def setFilePermissionGID(self, dir, val):
+		pfp = open(self.perms, "rb")
+		data = pfp.read()
+		pfp.close()
+		ret = data.find(dir)
+		if(ret == -1):
+			return 0
+		newlineloc = -1
+		for i in range(ret):
+			if(data.startswith("\n", i)):
+				newlineloc = i + 1
+		endloc = data.find("\n", newlineloc)
+		pfp = open(self.perms, "rb")
+		pfp.seek(newlineloc + 13)
+		gidata = pfp.write("%04X" % val)
+		pfp.close()
+		return int(gidata, 16)
 
 	def addPermissionEntry(self, uid, permissions, dir, groupid):
 		pfp = open(self.perms, "rb")
@@ -199,20 +389,157 @@ class NAND:
 class ISFSClass:
 	"""This class contains an interface to the NAND that simulates the permissions system and all other aspects of the ISFS.
 	The nand argument to the initializer is a NAND object."""
+	class ISFSFP:
+		def __init__(self, file, mode):
+			self.fp = open(file, mode)
+			self.loc = 0
+			self.size = len(self.fp.read())
+			self.fp.seek(0)
+			self.SEEK_SET = 0
+			self.SEEK_CUR = 1
+			self.SEEK_END = 2
+		def seek(self, where, whence = 0):
+			if(whence == self.SEEK_SET):
+				self.loc = where
+			if(whence == self.SEEK_CUR):
+				self.loc += where
+			if(whence == self.SEEK_END):
+				self.loc = self.size - where
+			self.fp.seek(self.loc)
+			return self.loc
+		def close(self):
+			self.fp.close()
+			self.loc = 0
+			self.size = 0
+		def write(self, data):
+			leng = self.fp.write(data)
+			self.loc += leng
+			return leng
+		def read(self, length=""):
+			if(length == ""):
+				self.loc = self.size
+				return self.fp.read()
+			self.loc += length
+			return self.fp.read(length)
+
 	def __init__(self, nand):
 		self.nand = nand
 		self.f = nand.f
+		self.ES = None
+	def _setes(self):
+		self.ES = self.nand.ES
+
+	def Open(self, file, mode):
+		if(not os.path.isfile(self.f + file)):
+			return None
+		return self.ISFSFP(self.f + file, mode)
+
+	def Close(self, fp):
+		fp.close()
+
+	def Delete(self, file):
+		self.nand.removeFile(file)
+
+	def CreateFile(self, filename, perms):
+		self.nand.newFile(filename, perms, self.ES.group, self.ES.title)
+
+	def Write(self, fp, data):
+		return fp.write(data)
+
+	def Read(self, fp, length=""):
+		return fp.read(length)
+
+	def Seek(self, fp, where, whence):
+		return fp.seek(where, whence)
+
+	def CreateDir(self, dirname, perms):
+		self.nand.newDirectory(dirname, perms, self.ES.group, self.ES.title)
+
+	def GetAttr(self, filename):	# Wheeee, stupid haxx to put all the numbers into one return value!
+		ret = self.nand.getFilePermissionUID(filename)
+		ret += (self.nand.getFilePermissionGID(filename) << 16)
+		ret += (self.nand.getFilePermissionOwner(filename) << 32)
+		ret += (self.nand.getFilePermissionGroup(filename) << 34)
+		ret += (self.nand.getFilePermissionOthers(filename) << 36)
+		return ret
+
+	def splitAttrUID(self, attr):
+		return attr & 0xFFFF
+	def splitAttrGID(self, attr):
+		return (attr >> 16) & 0xFFFF
+	def splitAttrOwner(self, attr):
+		return (attr >> 32) & 0xFF
+	def splitAttrGroup(self, attr):
+		return (attr >> 34) & 0xFF
+	def splitAttrOthers(self, attr):
+		return (attr >> 36) & 0xFF
+
+	def Rename(self, fileold, filenew):
+		uid = self.nand.getFilePermissionUID(fileold)
+		gid = self.nand.getFilePermissionGID(fileold)
+		own = self.nand.getFilePermissionOwner(fileold)
+		grp = self.nand.getFilePermissionGroup(fileold)
+		oth = self.nand.getFilePermissionOthers(fileold)
+		fld = self.nand.isFileDirectory(fileold)
+		if(fld):
+			print "Directory moving is busted ATM. Will fix laterz.\n"
+			return
+		fp = self.Open(fileold, "rb")
+		data = fp.Read()
+		fp.close()
+		self.Delete(fileold)
+		perms = ""
+		if(own & 1):
+			perms += "r"
+		else:
+			perms += "-"
+		if(own & 2):
+			perms += "w"
+		else:
+			perms += "-"
+		if(grp & 1):
+			perms += "r"
+		else:
+			perms += "-"
+		if(grp & 2):
+			perms += "w"
+		else:
+			perms += "-"
+		if(oth & 1):
+			perms += "r"
+		else:
+			perms += "-"
+		if(oth & 2):
+			perms += "w"
+		else:
+			perms += "-"
+		self.CreateFile(filenew, perms)
+		fp = self.Open(filenew, "wb")
+		fp.write(data)
+		fp.close()
+
+	def SetAttr(self, filename, uid, gid=0, owner=0, group=0, others=0):
+		self.nand.setFilePermissionUID(filename, uid)
+		self.nand.setFilePermissionGID(filename, gid)
+		self.nand.setFilePermissionOwner(filename, owner)
+		self.nand.setFilePermissionGroup(filename, group)
+		self.nand.setFilePermissionOthers(filename, others)
 
 class ESClass:
 	"""This class performs all services relating to titles installed on the Wii. It is a clone of the libogc ES interface.
 	The nand argument to the initializer is a NAND object."""
 	def __init__(self, nand):
+		self.title = 0x0000000100000002
+		self.group = 0x0001
 		self.ticketadded = 0
 		self.tmdadded = 0
 		self.workingcid = 0
 		self.workingcidcnt = 0
 		self.nand = nand
 		self.f = nand.f
+		self.ISFS = None
+	def _setisfs(self):
+		self.ISFS = self.nand.ISFS
 	def getContentIndexFromCID(self, tmd, cid):
 		"""Gets the content index from the content id cid referenced to in the TMD instance tmd."""
 		for i in range(tmd.tmd.numcontents):
