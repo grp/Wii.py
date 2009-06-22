@@ -226,7 +226,8 @@ class ContentMap:
 		"""When passed a sha1 hash (string of length 20), this will return the filename of the shared content (/shared1/%08x.app, no NAND prefix) specified by the hash in content.map. Note that if the content is not found, it will return False - not an empty string."""
 		cmfp = open(self.f, "rb")
 		cmdict = {}
-		num = len(data) / 28
+		num = len(cmfp.read()) / 28
+		cmfp.seek(0)
 		for z in range(num):
 			name = cmfp.read(8)
 			hash = cmfp.read(20)

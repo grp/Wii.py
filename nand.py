@@ -383,8 +383,46 @@ class NAND:
 			self.ES.AddContentFinish(contents[i].cid)
 		self.ES.AddTitleFinish()
 		if(add_to_menu == True):
-			if((tmd.tmd.titleid >> 32) != 0x00010008):
+			if(((tmd.tmd.titleid >> 32) != 0x00010008) and ((tmd.tmd.titleid >> 32) != 0x00000001)):
 				self.addTitleToMenu(tmd.tmd.titleid)
+
+	def createWADFromTitle(self, title, cert, output, version=0):
+		tmdpth = self.f + "/title/%08x/%08x/content/title.tmd" % (title >> 32, title & 0xFFFFFFFF)
+		if(version != 0):
+			tmdpth += ".%d" % version
+		tmd = TMD(tmdpth)
+		if(not os.path.isdir("export")):
+			os.mkdir("export")
+		tmd.dump("export/tmd")
+		tik = Ticket(self.f + "/ticket/%08x/%08x.tik" % (title >> 32, title & 0xFFFFFFFF))
+		tik.dump("export/tik")
+		contents = tmd.getContents()
+		for i in range(tmd.tmd.numcontents):
+			path = ""
+			if(contents[i].type == 0x0001):
+				path = self.f + "/title/%08x/%08x/content/%08x.app" % (title >> 32, title & 0xFFFFFFFF, contents[i].cid)
+			elif(contents[i].type == 0x8001):
+				path = self.getContentByHashFromContentMap(contents[i].hash)
+			fp = open(path, "rb")
+			data = fp.read()
+			fp.close()
+			fp = open("export/%08x.app" % contents[i].index, "wb")
+			fp.write(data)
+			fp.close()
+		fp = open(cert, "rb")
+		data = fp.read()
+		fp.close()
+		fp = open("export/cert", "wb")
+		fp.write(data)
+		fp.close()
+		WAD("export").pack(output)
+		for i in range(tmd.tmd.numcontents):
+			os.remove("export/%08x.app" % contents[i].index)
+		os.remove("export/tmd")
+		os.remove("export/tik")
+		os.remove("export/cert")
+		os.rmdir("export")
+		
 
 class ISFSClass:
 	"""This class contains an interface to the NAND that simulates the permissions system and all other aspects of the ISFS.
@@ -487,7 +525,6 @@ class ISFSClass:
 		fp = self.Open(fileold, "rb")
 		data = fp.Read()
 		fp.close()
-		self.Delete(fileold)
 		perms = ""
 		if(own & 1):
 			perms += "r"
@@ -517,6 +554,7 @@ class ISFSClass:
 		fp = self.Open(filenew, "wb")
 		fp.write(data)
 		fp.close()
+		self.Delete(fileold)
 
 	def SetAttr(self, filename, uid, gid=0, owner=0, group=0, others=0):
 		self.nand.setFilePermissionUID(filename, uid)
