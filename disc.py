@@ -110,9 +110,23 @@ class WOD: #WiiOpticalDisc
 		self.channelsCount = struct.unpack(">I", self.fp.read(4))[0]
 		self.chansTableOffset = struct.unpack(">I", self.fp.read(4))[0] << 2
 		
+		self.markedBlocks = []
+		
 		self.partitionOpen = -1
 		self.partitionOffset = -1
 		self.partitionType = -1
+		
+	def markContent(self, offset, size):
+		blockStart = offset / 0x7C00
+		blockLen = (align(size, 0x7C00)) / 0x7C00
+		
+		for x in range(blockStart, blockLen):
+			try:
+				self.markedBlocks.index(blockStart + x)
+			except:
+				self.markedBlocks.append(blockStart + x)
+				
+		print '%s (%i blocks marked)' % (self.markedBlocks, len(self.markedBlocks))
 		
 	def decryptBlock(self, block):
 		if len(block) != 0x8000:
@@ -139,6 +153,8 @@ class WOD: #WiiOpticalDisc
 			for x in range(readLen + 1):
 				blob += self.decryptBlock(self.fp.read(0x8000))
 		
+		self.markContent(offset, size)
+		
 		print 'Read from 0x%x to 0x%x' % (offset, offset + size)
 		offset -= readStart * 0x7C00
 		return blob[offset:offset + size]
@@ -151,7 +167,30 @@ class WOD: #WiiOpticalDisc
 		self.fp.seek(self.partitionOffset + 0x2A4 + offset)
 		return self.fp.read(size)
 		
-	def parseFst(self, buffer):
+	def parseFst(self, fst, names, i, isLast):
+		
+		fileName = names[struct.unpack(">I", fst[12 * i:12 * i + 4])[0] & 0x00ffffff]
+		fileSize = struct.unpack(">I", fst[12 * i + 8:12 * i + 8 + 4])[0]
+		
+		if i == 0:
+			for j in range(1, fileSize):
+				self.parseFst(fst, names, j, (j == fileSize - 1))
+			return fileSize
+		
+		if fst[12 * i]:
+			parentDir = struct.unpack(">I", fst[12 * i + 4:12 * i + 4 + 4])[0]
+			isLast = struct.unpack(">I", fst[12 * parentDir + 8:12 * parentDir + 8 + 4] == fileSize)[0]
+			
+			for j in range(1, fileSize):
+				self.parseFst(fst, names, j, (j == fileSize - 1))
+				
+			return fileSize
+		else:
+			fileOffset = 4 * struct.unpack(">I", fst[12 * i + 4, 12 * i + 4 + 4])
+			markContent(fileOffset, fileSize)
+			open(fileName, 'w+b').write(self.readPartition(fileOffset, fileSize))		
+			
+	"""def parseFst(self, buffer):
 		rootFiles = struct.unpack('>I', buffer[8:12])[0]
 		namesTable = buffer[12 * (rootFiles):]
 		
@@ -166,8 +205,8 @@ class WOD: #WiiOpticalDisc
 				fileType = 0
 			
 			temp = struct.unpack('>I', fstTableEntry[0x0:0x4])[0]
-			nameOffset = struct.unpack('>I', fstTableEntry[0x0:0x4])[0] & 0xffffff
-			fileName = namesTable[nameOffset:].split('\x00')[0]
+			nameOffset = struct.unpack('>I', fstTableEntry[0x0:0x4])[0] & 0x00ffffff
+			fileName = namesTable[nameOffset:].split('\x00')[0] 
 			#print '%s' % namesTable[nameOffset:]
 			#print '%s %s\n' % (namesTable[nameOffset:].split('\x00')[0], namesTable[nameOffset:].split('\x00')[1])
 			fileOffset = 4 * (struct.unpack('>I', fstTableEntry[0x4:0x8])[0])
@@ -177,7 +216,7 @@ class WOD: #WiiOpticalDisc
 			
 			print '%s [%i] [0x%X] [0x%X] [0x%X]' % (fileName, fileType, fileOffset, fileLenght, nameOffset)
 			
-		os.chdir('..')
+		os.chdir('..')"""
 
 	def openPartition(self, index):
 		if index > self.partitionCount:
@@ -219,7 +258,8 @@ class WOD: #WiiOpticalDisc
 
 	def getFst(self):
 		fstBuf = self.readPartition(self.fstOffset, self.fstSize)
-		self.parseFst(fstBuf)
+		fileNumber = 1000#struct.unpack(">I", fstBuf[0x8:0xc])
+		self.parseFst(fstBuf, fstBuf[12 * fileNumber], 0, 0)
 		return fstBuf
 		
 	def getIsoBootmode(self):
