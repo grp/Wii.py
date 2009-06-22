@@ -285,29 +285,28 @@ class TPL():
 		frame.Show(True)
 		app.MainLoop()
 		os.unlink("tmp.png")
-	def RGBA8(self, (w, h), jar):
-		out = [[0 for i in range(w * 4)] for i in range(h)]
-		i = 0
-		for y in range(0, h, 4):
-			for x in range(0, w, 4):
-				for iv in range(2):
-					for y1 in range(y, y + 4):
-						for x1 in range(x, x + 4):
-							if(y1 >= h or x1 >= w):
+	def RGBA8(self, (x, y), data):
+		out = [[0 for i in range(x * 4)] for i in range(y)]
+		inp = 0
+		for i in xrange(0, y, 4):
+			for j in xrange(0, x, 4):
+				for k in xrange(2):
+					for l in xrange(i, i + 4, 1):
+						for m in xrange(j, j + 4, 1):
+							texel = (data[inp])
+							inp += 1
+							if (m >= x) or (l >= y):
 								continue
-							pixel = jar[i]
-							i += 1
-							
-							if(iv == 0):
-								r = (pixel >> 0) & 0xFF
-								a = (pixel >> 8) & 0xFF
-								out[y1][(x1 * 4) + 0] = r
-								out[y1][(x1 * 4) + 3] = a
+							if k == 0:
+								a = (texel >> 8) & 0xff
+								r = (texel >> 0) & 0xff
+								out[l][(m*4)+0] = r
+								out[l][(m*4)+3] = a
 							else:
-								g = (pixel >> 8) & 0xFF
-								b = (pixel >> 0) & 0xFF
-								out[y1][(x1 * 4) + 1] = g
-								out[y1][(x1 * 4) + 2] = b
+								g = (texel >> 8) & 0xff
+								b = (texel >> 0) & 0xff
+								out[l][(m*4)+1] = g
+								out[l][(m*4)+2] = b
 		return out
 	def RGB5A3(self, (w, h), jar):
 		out = [[0 for i in range(w * 4)] for i in range(h)]
