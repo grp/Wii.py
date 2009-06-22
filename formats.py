@@ -13,7 +13,6 @@ class CONF:
 	def __init__(self, f):
 		self.conf = ''
 		self.keys = {}
-		self.keyNames = []
 		self.lastKeyOffset = 0
 		self.totalKeys = 0
 		
@@ -36,7 +35,6 @@ class CONF:
 			keyName = keys[x].split('=')[0]
 			keyVal = keys[x].split('=')[1]
 			
-			self.keyNames.append(keyName)
 			self.keys[keyName] = keyVal
 
 	def getKeysCount(self):
@@ -45,7 +43,7 @@ class CONF:
 			
 	def getKeysName(self):
 		"""Returns the list of key names."""
-		return self.keyNames
+		return self.keys.keys()
 
 	def getKeyValue(self, key):
 		"""Returns the value of the key ``key''."""
@@ -74,11 +72,7 @@ class CONF:
 		self.lastKeyOffset = self.conf.rfind('\r\n') + 2
 	
 	def keyExist(self, key):
-		"""Returns 1 if key ``key'' exists, 0 otherwise."""
-		if self.getKeyValue(key.upper()) != 'Key not found':
-			return 0
-		else:
-			return 1
+		return self.keys.has_key(key.upper())
 				
 	def addKey(self, key, value):
 		"""Adds key ``key'' with value ``value'' to the list."""
@@ -88,7 +82,6 @@ class CONF:
 			return -2
 			
 		self.keys[key.upper()] = value.upper()
-		self.keyNames.append(key.upper())
 		self.totalKeys +=1
 			
 		self.conf = self.conf[:self.lastKeyOffset] + key.upper() + '=' + value.upper() + '\r\n'
@@ -112,7 +105,6 @@ class CONF:
 		"""Deletes the key ``key''."""
 		try:
 			del self.keys[key.upper()]
-			self.keyNames.remove(key.upper())
 			self.totalKeys -=1
 		    
 			self.conf = ''
@@ -138,7 +130,6 @@ class CONF:
 			for key in self.keys.keys():
 				if self.keys.get(key) == value: 
 					del self.keys[key]
-					self.keyNames.remove(key)
 					self.totalKeys -=1
 			
 		    
