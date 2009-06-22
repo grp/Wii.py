@@ -15,7 +15,7 @@ class Savegame():
 			self.bannerSize = Struct.uint32
 			self.permissions = Struct.uint8
 			self.unknown1 = Struct.uint8
-			self.md5hash = Struct.uint32[4]
+			self.md5hash = Struct.string(16)
 			self.unknown2 = Struct.uint16
 			
 	class savegameBanner(Struct):
@@ -27,15 +27,15 @@ class Savegame():
 			self.reserved = Struct.uint32[5]
 			self.gameTitle = Struct.string(64)
 			self.gameSubTitle = Struct.string(64)
-			self.banner = Struct.uint8[24576]
-			self.icon0 = Struct.uint8[4608]
-			self.icon1 = Struct.uint8[4608]
-			self.icon2 = Struct.uint8[4608]
-			self.icon3 = Struct.uint8[4608]
-			self.icon4 = Struct.uint8[4608]
-			self.icon5 = Struct.uint8[4608]
-			self.icon6 = Struct.uint8[4608]
-			self.icon7 = Struct.uint8[4608]
+			self.banner = Struct.string(24576)
+			self.icon0 = Struct.string(4608)
+			self.icon1 = Struct.string(4608)
+			self.icon2 = Struct.string(4608)
+			self.icon3 = Struct.string(4608)
+			self.icon4 = Struct.string(4608)
+			self.icon5 = Struct.string(4608)
+			self.icon6 = Struct.string(4608)
+			self.icon7 = Struct.string(4608)
 			
 	class backupHeader(Struct):
 		__endian__ = Struct.BE
@@ -86,7 +86,7 @@ class Savegame():
 		ret += 'Banner size : 0x%x\n' % self.hdr.bannerSize
 		ret += 'Permissions : 0x%x\n' % self.hdr.permissions
 		ret += 'Unknown : 0x%x\n' % self.hdr.unknown1
-		ret += 'MD5 hash : 0x%x%x%x%x\n' % (self.hdr.md5hash[0], self.hdr.md5hash[1], self.hdr.md5hash[2], self.hdr.md5hash[3])
+		ret += 'MD5 hash : %s\n' % hexdump(self.hdr.md5hash)
 		ret += 'Unknown : 0x%x\n' % self.hdr.unknown2
 		
 		ret += '\nBanner header \n'
@@ -94,6 +94,7 @@ class Savegame():
 		ret += 'Flags : 0x%x\n' % self.bnr.flags
 		ret += 'Game title : %s\n' % self.bnr.gameTitle
 		ret += 'Game subtitle : %s\n' % self.bnr.gameSubTitle
+		ret += 'Icons found : %i\n' % self.iconCount
 		
 		ret += '\nBackup header \n'	
 		
@@ -178,16 +179,15 @@ class Savegame():
 
 		self.hdr = self.savegameHeader().unpack(headerBuffer[:0x20])
 		
-		#MD5 check fail always ...
-		#list(headerBuffer)[0x000E:0x001E] = '\x0e\x65\x37\x81\x99\xbe\x45\x17\xab\x06\xec\x22\x45\x1a\x57\x93'
-		#print '0x%x%x%x%x %s' % (self.hdr.md5hash[0], self.hdr.md5hash[1], self.hdr.md5hash[2], self.hdr.md5hash[3], hashlib.md5(headerBuffer[:0x20]).hexdigest())
+		#headerBuffer.replace(self.hdr.md5hash, '\x0e\x65\x37\x81\x99\xbe\x45\x17\xab\x06\xec\x22\x45\x1a\x57\x93')
+		#print 'Reashed md5 : %s' % hexdump(hashlib.md5(headerBuffer).digest())
 		
 		self.bnr = self.savegameBanner().unpack(headerBuffer[0x20:])
 		
 		if self.bnr.magic != 'WIBN':
 			raise Exception ('Wrong magic, should be WIBN')
 		
-		if self.hdr.bannerSize == 0xF0C0:
+		if self.hdr.bannerSize != 0x72A0:
 			self.iconCount += 7	
 		
 		bkHdrBuffer = self.fd.read(0x80)
@@ -199,7 +199,7 @@ class Savegame():
 		self.fileStartOffset = self.fd.tell()
 		
 	def getBanner(self):
-		return struct.pack('24576I', *self.bnr.banner)
+		return self.bnr.banner
 		
 	def getIcon(self, index):
 		if index < 0 or index > 7 or index > self.iconCount:

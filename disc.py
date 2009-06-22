@@ -155,7 +155,7 @@ class WOD: #WiiOpticalDisc
 		rootFiles = struct.unpack('>I', buffer[8:12])[0]
 		namesTable = buffer[12 * (rootFiles):]
 		
-		open('tbl.bin', 'w+b').write(str(buffer[12 * (rootFiles):].split('\x00')))
+		open('fst.bin', 'w+b').write(buffer)
 	 
 		for i in range(1, rootFiles):
 			fstTableEntry = buffer[12 * i:12 * (i + 1)]
@@ -167,8 +167,9 @@ class WOD: #WiiOpticalDisc
 			
 			temp = struct.unpack('>I', fstTableEntry[0x0:0x4])[0]
 			nameOffset = struct.unpack('>I', fstTableEntry[0x0:0x4])[0] & 0xffffff
-			fileName = namesTable[nameOffset:nameOffset + 256].split('\x00')[0]
-			print '%s %s\n' % (namesTable[nameOffset:nameOffset + 256].split('\x00')[0], namesTable[nameOffset:nameOffset + 256].split('\x00')[1])
+			fileName = namesTable[nameOffset:].split('\x00')[0]
+			#print '%s' % namesTable[nameOffset:]
+			#print '%s %s\n' % (namesTable[nameOffset:].split('\x00')[0], namesTable[nameOffset:].split('\x00')[1])
 			fileOffset = 4 * (struct.unpack('>I', fstTableEntry[0x4:0x8])[0])
 			fileLenght = struct.unpack('>I', fstTableEntry[0x8:0x0c])[0]
 			if fileName == '':
@@ -195,11 +196,6 @@ class WOD: #WiiOpticalDisc
 		
 		self.tikData = self.fp.read(0x2A4)
 		self.partitionKey = Ticket(self.tikData).getTitleKey()
-		
-		self.appLdr = self.Apploader().unpack(self.readPartition (0x2440, 32))
-		self.partitionHdr = self.discHeader().unpack(self.readPartition (0x0, 0x400))
-
-		self.fp.seek(self.partitionOffset + 0x2a4)
 
 		self.tmdSize = struct.unpack(">I", self.fp.read(4))[0]
 		self.tmdOffset = struct.unpack(">I", self.fp.read(4))[0] >> 2
@@ -217,6 +213,9 @@ class WOD: #WiiOpticalDisc
 		
 		self.dolOffset = 4 * struct.unpack(">I", self.readPartition (0x420, 4))[0]
 		self.dolSize = self.fstOffset - self.dolOffset
+	
+		self.appLdr = self.Apploader().unpack(self.readPartition (0x2440, 32))
+		self.partitionHdr = self.discHeader().unpack(self.readPartition (0x0, 0x400))
 
 	def getFst(self):
 		fstBuf = self.readPartition(self.fstOffset, self.fstSize)
@@ -259,6 +258,9 @@ class WOD: #WiiOpticalDisc
 		
 	def getPartitionApploader(self):
 		return self.readPartition (0x2440, self.appLdr.size + self.appLdr.trailingSize + 32)
+		
+	def getPartitionMainDol(self):
+		return self.readPartition (self.dolOffset, self.dolSize)
 
 	def extractPartition(self, index, fn = ""):
 
