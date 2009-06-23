@@ -11,8 +11,7 @@ class locDat:
 	class locHeader(Struct):
 		def __format__(self):
 			self.magic = Struct.string(4)
-			self.md5 = Struct.string(10)
-			self.unknown = Struct.string(4)
+			self.md5 = Struct.string(16)
 		
 	def __init__(self, f):
 		self.sdKey = '\xab\x01\xb9\xd8\xe1\x62\x2b\x08\xaf\xba\xd8\x4d\xbf\xc2\xa5\x5d'
@@ -23,24 +22,9 @@ class locDat:
 		self.freeBlocks = 0
 		
 		try:
-			self.fp = open(f, 'r+b')
+			self.fp = open(f, 'r+')
 		except:
-			self.fp = open(f, 'w+b')
-			
-			locHdr = self.locHeader()
-			
-			locHdr.magic = '\x73\x64\x61\x6C'
-			locHdr.md5 = '\x0e\x65\x37\x81\x99\xbe\x45\x17\xab\x06\xec\x22\x45\x1a\x57\x93'
-			locHdr.unknown = '\xA1\x6C\x2A\xEB'
-			
-			locHdr.md5 = Crypto().createMD5Hash(locHdr.pack())
-			
-			self.fp.write(locHdr.pack())
-			self.fp.write('\x00\x00\x00\x00' * 240)
-			self.fp.write('\x00' * 12)
-			
-			self.freeBlocks = 240
-			return
+			raise Exception('File not found')
 			
 		plainBuffer = Crypto().decryptData(self.sdKey, self.sdIv, self.fp.read(), False)	
 			
@@ -80,25 +64,40 @@ class locDat:
 		try:
 			return self.titles.index(title.upper())
 		except:
-			return 0
+			return -1
+			
+	def getPageTitles(self, page):
+		if page > 19:
+			raise Exception('Out of bounds')
+			
+		return self.titles[12 * page:12 * (page + 1)]
 			
 	def getTitle(self, x, y, page):
-		if x > 3 or y > 2 or page > 20:
+		if x > 3 or y > 2 or page > 19:
 			raise Exception('Out of bounds')
 			
 		return self.titles[((x + (y * 4) + (page * 12)))]
 		
 	def setTitle(self, x, y, page, element):
-		if x > 3 or y > 2 or page > 20 or len(element) > 4:
+		if x > 3 or y > 2 or page > 19 or len(element) > 4:
 			raise Exception('Out of bounds')
 			
 		self.titles[((x + (y * 4) + (page * 12)))] = element.upper()
-		self.fp.seek(0x14)
+		
+		titles = ''
+		
+		titles += self.hdr.magic
+		titles += self.hdr.md5
 		
 		for x in range(240):
-			self.fp.write(Crypto().encryptData(self.sdKey, self.sdIv, self.titles[x], True))
+			titles += self.titles[x]
 			
-		self.fp.write('\x00' * 12)
+		titles += '\x00' * 12
+		
+		titles = titles[:0x4] + Crypto().createMD5Hash(titles) + titles[0x14:]
+
+		self.fp.seek(0)
+		self.fp.write(Crypto().encryptData(self.sdKey, self.sdIv, titles))
 			
 	def delTitle(self, x, y, page):
 		self.setTitle(x, y, page, '\x00\x00\x00\x00')
