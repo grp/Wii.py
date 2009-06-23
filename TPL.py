@@ -7,7 +7,10 @@ from Struct import Struct
 from common import *
 
 def flatten(myTuple):
-	return myTuple[0] << 24 | myTuple[1] << 16 | myTuple[2] << 8 | myTuple[3] << 0
+	if (len(myTuple) == 4):
+		return myTuple[0] << 24 | myTuple[1] << 16 | myTuple[2] << 8 | myTuple[3] << 0
+	else:
+		return myTuple[0] << 24 | myTuple[1] << 16 | myTuple[2] << 8 | 0xff << 0
 
 def round_up(x, n):
 	left = x % n
@@ -448,15 +451,16 @@ class TPL():
 					tpldata = struct.unpack(">" + str(w * h) + "H", data[tex.data_off:tex.data_off + (w * h * 2)])
 					rgbdata = self.CI14X2((w, h), tpldata, paldata)
 			elif(tex.format == 14):
-				sz = ((w + 7) >> 3) * ((w + 7) >> 3) * 32
-				tpldata = struct.unpack(">" + str(sz / 2) + "H", data[tex.data_off:tex.data_off + sz])
+				#sz = ((w + 7) >> 3) * ((w + 7) >> 3) * 32
+				#tpldata = struct.unpack(">" + str(sz / 2) + "H", data[tex.data_off:tex.data_off + sz])
+				tpldata = ''.join(data[tex.data_off:])
 				
 				rgbdata = self.CMP((w, h), tpldata)
 			else:
 				raise TypeError("Unsupported TPL Format: " + str(tex.format))
 		
 		output = Image.fromstring("RGBA", (w, h), rgbdata)
-		ext = outfile[outfile.rfind("."):]
+		ext = outfile[outfile.rfind(".")+1:]
 		output.save(outfile, ext)
 		
 		return outfile
@@ -488,13 +492,13 @@ class TPL():
 		"""This will draw a simple window with the TPL image displayed on it. It uses WxPython for the window creation and management. The window has a minimum width and height of 300 x 200. Does not return a value.
 		
 		Again, only a single texture is supported."""
+		import wx
 		class imp(wx.Panel):
 			def __init__(self, parent, id, im):
 				wx.Panel.__init__(self, parent, id)
 				w, h = im.size
 				wx.StaticBitmap(self, -1, im, ( ((max(w, 300) - w) / 2), ((max(h, 200) - h) / 2) ), (w, h))
 
-		import wx
 		self.toImage("tmp.png")
 		img = Image.open("tmp.png")
 		w, h = img.size
@@ -552,7 +556,7 @@ class TPL():
 						out[y1*w+x1] = rgba
 		return ''.join(Struct.uint32(p) for p in out)
 	def RGB565(self, (w, h), jar):
-		out = [0 for i in range(x * y)]
+		out = [0 for i in range(w * h)]
 		i = 0
 		for y in range(0, h, 4):
 			for x in range(0, w, 4):
@@ -572,7 +576,7 @@ class TPL():
 						out[y1*w+x1] = rgba
 		return ''.join(Struct.uint32(p) for p in out)
 	def I4(self, (w, h), jar):
-		out = [0 for i in range(x * y)]
+		out = [0 for i in range(w * h)]
 		i = 0
 		for y in range(0, h, 8):
 			for x in range(0, w, 8):
@@ -587,10 +591,8 @@ class TPL():
 						b = (pixel >> 4) * 255 / 15
 						a = 255
 
-						out[y1][(x1 * 4) + 0] = r
-						out[y1][(x1 * 4) + 1] = g
-						out[y1][(x1 * 4) + 2] = b
-						out[y1][(x1 * 4) + 3] = a
+						rgba = (r<<0) | (g<<8) | (b<<16) | (a<<24)
+						out[y1*w+x1] = rgba
 						
 						if(y1 >= h or x1 >= w):
 							continue
@@ -602,13 +604,11 @@ class TPL():
 						b = (pixel & 0x0F) * 255 / 15
 						a = 255
 
-						out[y1][((x1 + 1) * 4) + 0] = r
-						out[y1][((x1 + 1) * 4) + 1] = g
-						out[y1][((x1 + 1) * 4) + 2] = b
-						out[y1][((x1 + 1) * 4) + 3] = a
-		return out
+						rgba = (r<<0) | (g<<8) | (b<<16) | (a<<24)
+						out[y1*w+x1+1] = rgba
+		return ''.join(Struct.uint32(p) for p in out)
 	def IA4(self, (w, h), jar):
-		out = [0 for i in range(x * y)]
+		out = [0 for i in range(w * h)]
 		i = 0
 		for y in range(0, h, 4):
 			for x in range(0, w, 8):
@@ -619,16 +619,16 @@ class TPL():
 						pixel = jar[i]
 						i += 1
 						
-						r = (pixel & 0x0F) * 255 / 15
-						g = (pixel & 0x0F) * 255 / 15
-						b = (pixel & 0x0F) * 255 / 15
-						a = 255 - ((pixel & 0xFF) * 255 / 15)
+						r = ((pixel & 0x0F) * 255 / 15) & 0xff
+						g = ((pixel & 0x0F) * 255 / 15) & 0xff
+						b = ((pixel & 0x0F) * 255 / 15) & 0xff
+						a = (255 - ((pixel & 0xFF) * 255 / 15)) & 0xff
 
 						rgba = (r<<0) | (g<<8) | (b<<16) | (a<<24)
 						out[y1*w+x1] = rgba
 		return ''.join(Struct.uint32(p) for p in out)
 	def I8(self, (w, h), jar):
-		out = [0 for i in range(x * y)]
+		out = [0 for i in range(w * h)]
 		i = 0
 		for y in range(0, h, 4):
 			for x in range(0, w, 8):
@@ -648,7 +648,7 @@ class TPL():
 						out[y1*w+x1] = rgba
 		return ''.join(Struct.uint32(p) for p in out)
 	def IA8(self, (w, h), jar):
-		out = [0 for i in range(x * y)]
+		out = [0 for i in range(w * h)]
 		i = 0
 		for y in range(0, h, 4):
 			for x in range(0, w, 4):
@@ -668,7 +668,7 @@ class TPL():
 						out[y1*w+x1] = rgba
 		return ''.join(Struct.uint32(p) for p in out)
 	def CI4(self, (w, h), jar, pal):
-		out = [0 for i in range(x * y)]
+		out = [0 for i in range(w * h)]
 		i = 0
 		for y in range(0, h, 8):
 			for x in range(0, w, 8):
@@ -700,7 +700,7 @@ class TPL():
 						out[y1*w+x1+1] = rgba
 		return ''.join(Struct.uint32(p) for p in out)
 	def CI8(self, (w, h), jar, pal):
-		out = [0 for i in range(x * y)]
+		out = [0 for i in range(w * h)]
 		i = 0
 		for y in range(0, h, 4):
 			for x in range(0, w, 8):
