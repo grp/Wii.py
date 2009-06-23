@@ -1,15 +1,13 @@
-import os, hashlib, struct, subprocess, fnmatch, shutil, urllib, array
+import os, struct, subprocess, fnmatch, shutil, urllib, array
 from binascii import *
 
-from hashlib import md5
-from Crypto.Cipher import AES
 from Struct import Struct
 from struct import *
 
 from common import *
 from title import *
 
-class LOC:
+class locDat:
 	class locHeader(Struct):
 		def __format__(self):
 			self.magic = Struct.string(4)
@@ -35,7 +33,7 @@ class LOC:
 			locHdr.md5 = '\x0e\x65\x37\x81\x99\xbe\x45\x17\xab\x06\xec\x22\x45\x1a\x57\x93'
 			locHdr.unknown = '\xA1\x6C\x2A\xEB'
 			
-			locHdr.md5 = hashlib().md5(locHdr.pack()).digest()
+			locHdr.md5 = Crypto().createMD5Hash(locHdr.pack())
 			
 			self.fp.write(locHdr.pack())
 			self.fp.write('\x00\x00\x00\x00' * 240)

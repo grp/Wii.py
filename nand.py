@@ -1,7 +1,6 @@
-import os, hashlib, struct, subprocess, fnmatch, shutil, urllib, array
+import os, struct, subprocess, fnmatch, shutil, urllib, array
 from binascii import *
 
-from Crypto.Cipher import AES
 from Struct import Struct
 from struct import *
 

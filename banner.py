@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import sys, struct, re, hashlib, os
+import sys, struct, re, os
 
 ''' STOLEN FROM COMEX '''
 def nullterm(str_plus):
