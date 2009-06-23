@@ -201,9 +201,15 @@ class TPL():
 							newpixel = 0
 						else:
 							rgba = flatten(inp[x+y*w])
-							i1 = (rgba >> 0) & 0xff
+							r = (rgba >> 0)  & 0xff
+							g = (rgba >> 8)  & 0xff
+							b = (rgba >> 16) & 0xff
+							i1 = ((r + g + b) / 3) & 0xff
 							rgba = flatten(inp[x+1+y*w])
-							i2 = (rgba >> 0) & 0xff
+							r = (rgba >> 0)  & 0xff
+							g = (rgba >> 8)  & 0xff
+							b = (rgba >> 16) & 0xff
+							i2 = ((r + g + b) / 3) & 0xff
 
 							newpixel = (((i1 * 15) / 255) << 4)
 							newpixel |= (((i2 * 15) / 255) & 0xf)
@@ -222,7 +228,10 @@ class TPL():
 						if x>= w or y>=h:
 							i1 = 0
 						else:
-							i1 = (rgba >> 0) & 0xff
+							r = (rgba >> 0)  & 0xff
+							g = (rgba >> 8)  & 0xff
+							b = (rgba >> 16) & 0xff
+							i1 = ((r + g + b) / 3) & 0xff
 						out[outp] = i1
 						outp += 1
 		return out
@@ -238,7 +247,10 @@ class TPL():
 							newpixel = 0
 						else:
 							rgba = flatten(inp[x + (y * w)])
-							i1 = (rgba >> 0)  & 0xff
+							r = (rgba >> 0)  & 0xff
+							g = (rgba >> 8)  & 0xff
+							b = (rgba >> 16) & 0xff
+							i1 = ((r + g + b) / 3) & 0xff
 							a1 = (rgba >> 24) & 0xff
 
 							newpixel = (((i1 * 15) / 255) & 0xf)
@@ -258,7 +270,10 @@ class TPL():
 							newpixel = 0
 						else:
 							rgba = flatten(inp[x + (y * w)])
-							i1 = (rgba >> 0)  & 0xff
+							r = (rgba >> 0)  & 0xff
+							g = (rgba >> 8)  & 0xff
+							b = (rgba >> 16) & 0xff
+							i1 = ((r + g + b) / 3) & 0xff
 							a1 = (rgba >> 24) & 0xff
 
 							newpixel = a1 << 8
@@ -532,11 +547,11 @@ class TPL():
 	def RGB5A3(self, (w, h), jar):
 		out = [0 for i in range(w * h)]
 		i = 0
-		for y in range(0, h, 4):
-			for x in range(0, w, 4):
-				for y1 in range(y, y + 4):
-					for x1 in range(x, x + 4):
-						if(y1 >= h or x1 >= w):
+		for y1 in range(0, h, 4):
+			for x1 in range(0, w, 4):
+				for y in range(y1, y1 + 4):
+					for x in range(x1, x1 + 4):
+						if(y >= h or x >= w):
 							continue
 						pixel = jar[i]
 						i += 1
@@ -553,7 +568,7 @@ class TPL():
 							a = 255 - (((pixel >> 12) & 0x07) * 64) / 7
 
 						rgba = (r<<0) | (g<<8) | (b<<16) | (a<<24)
-						out[y1*w+x1] = rgba
+						out[y*w+x] = rgba
 		return ''.join(Struct.uint32(p) for p in out)
 	def RGB565(self, (w, h), jar):
 		out = [0 for i in range(w * h)]
