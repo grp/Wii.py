@@ -473,8 +473,6 @@ class TPL():
 					tpldata = struct.unpack(">" + str(w * h) + "H", data[tex.data_off:tex.data_off + (w * h * 2)])
 					rgbdata = self.CI14X2((w, h), tpldata, paldata)
 			elif(tex.format == 14):
-				#sz = ((w + 7) >> 3) * ((w + 7) >> 3) * 32
-				#tpldata = struct.unpack(">" + str(sz / 2) + "H", data[tex.data_off:tex.data_off + sz])
 				tpldata = ''.join(data[tex.data_off:])
 				
 				rgbdata = self.CMP((w, h), tpldata)
