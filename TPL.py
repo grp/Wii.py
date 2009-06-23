@@ -129,7 +129,7 @@ class TPL():
 			raise Exception("toCI4 not done")
 			#tpldata = self.toCI4((w, h), img)
 		elif format == "CI8":
-			texhead.format = 8
+			texhead.format = 9
 			''' ADD toCI8 '''
 			raise Exception("toCI8 not done")
 			#tpldata = self.toCI8((w, h), img)
