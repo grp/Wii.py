@@ -7,9 +7,9 @@ from common import *
 
 def flatten(myTuple):
 	if (len(myTuple) == 4):
-		return myTuple[0] << 24 | myTuple[1] << 16 | myTuple[2] << 8 | myTuple[3] << 0
+		return myTuple[0] << 0 | myTuple[1] << 8 | myTuple[2] << 16 | myTuple[3] << 24
 	else:
-		return myTuple[0] << 24 | myTuple[1] << 16 | myTuple[2] << 8 | 0xff << 0
+		return myTuple[0] << 0 | myTuple[1] << 8 | myTuple[2] << 16 | 0xff << 24
 
 def round_up(x, n):
 	left = x % n
@@ -200,13 +200,13 @@ class TPL():
 							newpixel = 0
 						else:
 							rgba = flatten(inp[x+y*w])
-							r = (rgba >> 0)  & 0xff
-							g = (rgba >> 8)  & 0xff
+							r = (rgba >> 0) & 0xff
+							g = (rgba >> 8) & 0xff
 							b = (rgba >> 16) & 0xff
 							i1 = ((r + g + b) / 3) & 0xff
 							rgba = flatten(inp[x+1+y*w])
-							r = (rgba >> 0)  & 0xff
-							g = (rgba >> 8)  & 0xff
+							r = (rgba >> 0) & 0xff
+							g = (rgba >> 8) & 0xff
 							b = (rgba >> 16) & 0xff
 							i2 = ((r + g + b) / 3) & 0xff
 
@@ -227,8 +227,8 @@ class TPL():
 						if x>= w or y>=h:
 							i1 = 0
 						else:
-							r = (rgba >> 0)  & 0xff
-							g = (rgba >> 8)  & 0xff
+							r = (rgba >> 0) & 0xff
+							g = (rgba >> 8) & 0xff
 							b = (rgba >> 16) & 0xff
 							i1 = ((r + g + b) / 3) & 0xff
 						out[outp] = i1
@@ -246,14 +246,14 @@ class TPL():
 							newpixel = 0
 						else:
 							rgba = flatten(inp[x + (y * w)])
-							r = (rgba >> 0)  & 0xff
-							g = (rgba >> 8)  & 0xff
+							r = (rgba >> 0) & 0xff
+							g = (rgba >> 8) & 0xff
 							b = (rgba >> 16) & 0xff
 							i1 = ((r + g + b) / 3) & 0xff
 							a1 = (rgba >> 24) & 0xff
 
 							newpixel = (((i1 * 15) / 255) & 0xf)
-							newpixel |= (((a1 * 15) / 255) << 4)
+							newpixel = newpixel | (((a1 * 15) / 255) << 4)
 						out[outp] = newpixel
 						outp += 1
 		return out
@@ -269,15 +269,16 @@ class TPL():
 							newpixel = 0
 						else:
 							rgba = flatten(inp[x + (y * w)])
-							r = (rgba >> 0)  & 0xff
-							g = (rgba >> 8)  & 0xff
+							r = (rgba >> 0) & 0xff
+							g = (rgba >> 8) & 0xff
 							b = (rgba >> 16) & 0xff
 							i1 = ((r + g + b) / 3) & 0xff
 							a1 = (rgba >> 24) & 0xff
 
-							newpixel = a1 << 8
-							newpixel |= i1
+							newpixel = i1 << 8
+							newpixel = newpixel | a1
 						out[outp] = newpixel
+						outp += 1
 		return out
 	def toRGB565(self, (w, h), img):
 		out = [0 for i in range(align(w, 4) * align(h, 4))]
@@ -292,8 +293,8 @@ class TPL():
 							newpixel = 0
 						else:
 							rgba = flatten(inp[x+y*w])
-							r = (rgba >> 0)  & 0xff
-							g = (rgba >> 8)  & 0xff
+							r = (rgba >> 0) & 0xff
+							g = (rgba >> 8) & 0xff
 							b = (rgba >> 16) & 0xff
 							newpixel = ((b >>3) << 11) | ((g >>2) << 5) | ((r >>3) << 0)
 						out[outp] = newpixel
@@ -317,58 +318,65 @@ class TPL():
 							b = (rgba >> 16) & 0xff
 							a = (rgba >> 24) & 0xff
 							if (a <= 0xda):
-								newpixel |= (1 << 15)
+								newpixel &= ~(1 << 15)
 								r = ((r * 15)  / 255) & 0xf
-								g = ((r * 15)  / 255) & 0xf
-								b = ((r * 15)  / 255) & 0xf
-								a = ((r * 7)   / 255) & 0x7
-								newpixel |= r << 12
-								newpixel |= g << 8
-								newpixel |= b << 4
-								newpixel |= a << 0
+								g = ((g * 15)  / 255) & 0xf
+								b = ((b * 15)  / 255) & 0xf
+								a = ((a * 7)   / 255) & 0x7
+								#newpixel |= r << 12
+								#newpixel |= g << 8
+								#newpixel |= b << 4
+								#newpixel |= a << 0
+								newpixel |= a << 12
+								newpixel |= b << 8
+								newpixel |= g << 4
+								newpixel |= r << 0
 							else:
-								newpixel &= (1 << 15)
+								newpixel |= (1 << 15)
 								r = ((r * 31) / 255) & 0x1f
 								g = ((g * 31) / 255) & 0x1f
 								b = ((b * 31) / 255) & 0x1f
-								newpixel |= r << 10
+								newpixel |= b << 10
 								newpixel |= g << 5
-								newpixel |= b << 0
+								newpixel |= r << 0
 						out[outp] = newpixel
 						outp += 1
 		return out
 	def toRGBA8(self, (w, h), img):
 		out = [0 for i in range(align(w, 4) * align(h, 4) * 4)]
 		inp = list(img.getdata())
-		alpha = True
-		iv = z = 0
-		lr = la = lb = lg = [0 for i in range(32)]
+		iv = 0
+		z = 0
+		lr = [0 for i in range(32)]
+		lg = [0 for i in range(32)]
+		lb = [0 for i in range(32)]
+		la = [0 for i in range(32)]
 		for y1 in range(0, h, 4):
 			for x1 in range(0, w, 4):
-				for y in range(y1, y1 + 4):
-					for x in range(x1, x1 + 4):
+				for y in range(y1, y1 + 4, 1):
+					for x in range(x1, x1 + 4, 1):
 						if(y >= h or x >= w):
-							lr[z] = lg[z] = lb[z] = la[z] = 0
+							lr[z] = 0
+							lg[z] = 0
+							lb[z] = 0
+							la[z] = 0
 						else:
-							rgba = flatten(inp[x1 + (y1 * w)])
+							rgba = flatten(inp[x + (y * w)])
 						lr[z] = (rgba >> 0) & 0xff
 						lg[z] = (rgba >> 8) & 0xff
 						lb[z] = (rgba >> 16) & 0xff
-						if(alpha == True):
-							lr[z] = (rgba >> 24) & 0xff
-						else:
-							la[z] = 255
+						la[z] = (rgba >> 24) & 0xff
 						z += 1
 				if(z == 16):
 					for i in range(16):
-						out[iv] = lr[i]
+						out[iv] = lr[i] & 0xff
 						iv += 1
-						out[iv] = la[i]
+						out[iv] = la[i] & 0xff
 						iv += 1
 					for i in range(16):
-						out[iv] = lb[i]
+						out[iv] = lb[i] & 0xff
 						iv += 1
-						out[iv] = lg[i]
+						out[iv] = lg[i] & 0xff
 						iv += 1
 					z = 0
 		return out
@@ -420,17 +428,17 @@ class TPL():
 				rgbdata = self.IA4((w, h), tpldata)
 			
 			elif(tex.format == 4): #RGB565, 16-bit
-				tpldata = struct.unpack(">" + str(w * h) + "H", data[tex.data_off:tex.data_off + (w * h * 2)])
+				tpldata = data[tex.data_off:]
 				rgbdata = self.RGB565((w, h), tpldata)
 			elif(tex.format == 5): #RGB5A3, 16-bit
-				tpldata = struct.unpack(">" + str(w * h) + "H", data[tex.data_off:tex.data_off + (w * h * 2)])
+				tpldata = data[tex.data_off:]
 				rgbdata = self.RGB5A3((w, h), tpldata)
 			elif(tex.format == 3): #IA8, 16-bit
-				tpldata = struct.unpack(">" + str(w * h) + "H", data[tex.data_off:tex.data_off + (w * h * 2)])
+				tpldata = data[tex.data_off:]
 				rgbdata = self.IA8((w, h), tpldata)
 			
 			elif(tex.format == 6): #RGBA8, 32-bit, but for easyness's sake lets do it with 16-bit
-				tpldata = struct.unpack(">" + str(w * h * 2) + "H", data[tex.data_off:tex.data_off + (w * h * 4)])
+				tpldata = data[tex.data_off:]
 				rgbdata = self.RGBA8((w, h), tpldata)
 				
 			elif(tex.format == 8 or tex.format == 9 or tex.format == 10):
@@ -532,7 +540,7 @@ class TPL():
 				for k in xrange(2):
 					for l in xrange(i, i + 4, 1):
 						for m in xrange(j, j + 4, 1):
-							texel = data[inp]
+							texel = Struct.uint16(data[inp*2:inp*2+2])
 							inp += 1
 							if (m >= x) or (l >= y):
 								continue
@@ -554,19 +562,19 @@ class TPL():
 					for x in range(x1, x1 + 4):
 						if(y >= h or x >= w):
 							continue
-						pixel = jar[i]
+						pixel = Struct.uint16(jar[i*2:i*2+2], endian='>')
 						i += 1
 						
 						if(pixel & (1 << 15)): #RGB555
-							r = (((pixel >> 10) & 0x1F) * 255) / 31
+							b = (((pixel >> 10) & 0x1F) * 255) / 31
 							g = (((pixel >> 5) & 0x1F) * 255) / 31
-							b = (((pixel >> 0) & 0x1F) * 255) / 31
+							r = (((pixel >> 0) & 0x1F) * 255) / 31
 							a = 255
 						else: #RGB4A3
-							r = (((pixel >> 8) & 0x0F) * 255) / 15
-							g = (((pixel >> 4) & 0x0F) * 255) / 15
-							b = (((pixel >> 0) & 0x0F) * 255) / 15
-							a = 255 - (((pixel >> 12) & 0x07) * 64) / 7
+							b = (((pixel >> 12) & 0x0F) * 255) / 15
+							g = (((pixel >> 8) & 0x0F) * 255) / 15
+							r = (((pixel >> 4) & 0x0F) * 255) / 15
+							a = (((pixel >> 0) & 0x07) * 64) / 7
 
 						rgba = (r<<0) | (g<<8) | (b<<16) | (a<<24)
 						out[y*w+x] = rgba
@@ -580,12 +588,12 @@ class TPL():
 					for x1 in range(x, x + 4):
 						if(y1 >= h or x1 >= w):
 							continue
-						pixel = jar[i]
+						pixel = Struct.uint16(jar[i*2:i*2+2], endian='>')
 						i += 1
 						
-						r = ((pixel >> 11) & 0x1F) << 3
-						g = ((pixel >> 5) & 0x3F) << 2
-						b = ((pixel >> 0) & 0x1F) << 3
+						b = (((pixel >> 11) & 0x1F) << 3) & 0xff
+						g = (((pixel >> 5) & 0x3F) << 2) & 0xff
+						r = (((pixel >> 0) & 0x1F) << 3) & 0xff
 						a = 255
 
 						rgba = (r<<0) | (g<<8) | (b<<16) | (a<<24)
@@ -638,7 +646,7 @@ class TPL():
 						r = ((pixel & 0x0F) * 255 / 15) & 0xff
 						g = ((pixel & 0x0F) * 255 / 15) & 0xff
 						b = ((pixel & 0x0F) * 255 / 15) & 0xff
-						a = (255 - ((pixel & 0xFF) * 255 / 15)) & 0xff
+						a = (((pixel >> 4) * 255) / 15) & 0xff
 
 						rgba = (r<<0) | (g<<8) | (b<<16) | (a<<24)
 						out[y1*w+x1] = rgba
@@ -672,13 +680,13 @@ class TPL():
 					for x1 in range(x, x + 4):
 						if(y1 >= h or x1 >= w):
 							continue
-						pixel = jar[i]
+						pixel = Struct.uint16(jar[i*2:i*2+2], endian='>')
 						i += 1
 						
-						r = pixel >> 8
-						g = pixel >> 8
-						b = pixel >> 8
-						a = 255 - (pixel & 0xFF)
+						r = (pixel >> 8) & 0xff
+						g = (pixel >> 8) & 0xff
+						b = (pixel >> 8) & 0xff
+						a = pixel  & 0xff
 
 						rgba = (r<<0) | (g<<8) | (b<<16) | (a<<24)
 						out[y1*w+x1] = rgba
