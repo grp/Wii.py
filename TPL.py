@@ -538,7 +538,7 @@ class TPL():
 				for k in xrange(2):
 					for l in xrange(i, i + 4, 1):
 						for m in xrange(j, j + 4, 1):
-							texel = Struct.uint16(data[inp*2:inp*2+2])
+							texel = Struct.uint16(data[inp*2:inp*2+2], endian = '>')
 							inp += 1
 							if (m >= x) or (l >= y):
 								continue
