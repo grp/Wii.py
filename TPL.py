@@ -37,9 +37,9 @@ def avg(w0, w1, c0, c1):
 class TPL():
 	"""This is the class to generate TPL texutres from PNG images, and to convert TPL textures to PNG images. The parameter file specifies the filename of the source, either a PNG image or a TPL image.
 	
-	Currently supported are the following formats to convert from TPL: RGBA8, RGB565, RGB5A3, CI4, CI8, I4, I8, IA4, IA8. Currently not supported are: CMP, CI14X2.
+	Currently supported are the following formats to convert from TPL: RGBA8, RGB565, I4, IA4, I8, IA8, CI4, CI8, CMP, CI14X2. Currently not working is RBG5A3. RBG5A3 is having alpha issues, i'm working on it.
 	
-	Currently support to convert to TPL: RGBA8. Currently not supported are: RGB565, RGB5A3, I4, I8, IA4, IA8, CI4, CI8, CMP, CI14X2."""
+	Currently support to convert to TPL: I4, I8, IA4, IA8, RBG565, RBGA8. Currently not working/done are CI4, CI8, CMP, CI14X2, and RBG5A3. RBG5A3 is having alpha issues."""
 	
 	
 	class TPLHeader(Struct):
@@ -83,7 +83,7 @@ class TPL():
 			self.file = None
 			self.data = file
 	def toTPL(self, outfile, (width, height) = (None, None), format = "RGBA8"): #single texture only
-		"""This converts a PNG image into a TPL. The PNG image is specified as the file parameter to the class initializer, while the output filename is specified here as the parameter outfile. Width and height are optional parameters and specify the size to resize the image to, if needed. Returns the output filename.
+		"""This converts an image into a TPL. The image is specified as the file parameter to the class initializer, while the output filename is specified here as the parameter outfile. Width and height are optional parameters and specify the size to resize the image to, if needed. Returns the output filename.
 		
 		This only can create TPL images with a single texture."""
 		head = self.TPLHeader()
@@ -176,7 +176,7 @@ class TPL():
 		if format == "CI4":
 			''' ADD toCI4 '''
 			#f.write(struct.pack(">"+ str(align(w,4) * align(h,4) * 4) + "B", *tpldata))
-		if format == "CI88":
+		if format == "CI8":
 			''' ADD toCI8 '''
 			#f.write(struct.pack(">"+ str(align(w,4) * align(h,4) * 4) + "B", *tpldata))
 		if format == "CI14X2":
