@@ -7,7 +7,10 @@ from Struct import Struct
 from common import *
 
 def flatten(myTuple):
-	return myTuple[0] << 24 | myTuple[1] << 16 | myTuple[2] << 8 | myTuple[3] << 0
+	if (len(myTuple) == 4):
+		return myTuple[0] << 24 | myTuple[1] << 16 | myTuple[2] << 8 | myTuple[3] << 0
+	else:
+		return myTuple[0] << 24 | myTuple[1] << 16 | myTuple[2] << 8 | 0xff << 0
 
 def round_up(x, n):
 	left = x % n
@@ -129,7 +132,7 @@ class TPL():
 			raise Exception("toCI4 not done")
 			#tpldata = self.toCI4((w, h), img)
 		elif format == "CI8":
-			texhead.format = 8
+			texhead.format = 9
 			''' ADD toCI8 '''
 			raise Exception("toCI8 not done")
 			#tpldata = self.toCI8((w, h), img)
@@ -488,13 +491,13 @@ class TPL():
 		"""This will draw a simple window with the TPL image displayed on it. It uses WxPython for the window creation and management. The window has a minimum width and height of 300 x 200. Does not return a value.
 		
 		Again, only a single texture is supported."""
+		import wx
 		class imp(wx.Panel):
 			def __init__(self, parent, id, im):
 				wx.Panel.__init__(self, parent, id)
 				w, h = im.size
 				wx.StaticBitmap(self, -1, im, ( ((max(w, 300) - w) / 2), ((max(h, 200) - h) / 2) ), (w, h))
 
-		import wx
 		self.toImage("tmp.png")
 		img = Image.open("tmp.png")
 		w, h = img.size
