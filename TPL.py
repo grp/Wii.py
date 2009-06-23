@@ -128,26 +128,22 @@ class TPL():
 		elif format == "CI4":
 			texhead.format = 8
 			''' ADD toCI4 '''
-			print "toCI4 not done"
-			sys.exit(2)
+			raise Exception("toCI4 not done")
 			#tpldata = self.toCI4((w, h), img)
 		elif format == "CI8":
 			texhead.format = 8
 			''' ADD toCI8 '''
-			print "toCI8 not done"
-			sys.exit(2)
+			raise Exception("toCI8 not done")
 			#tpldata = self.toCI8((w, h), img)
 		elif format == "CI14X2":
 			texhead.format = 10
 			''' ADD toCI14X2 '''
-			print "toCI14X2 not done"
-			sys.exit(2)
+			raise Exception("toCI14X2 not done")
 			#tpldata = self.toCI14X2((w, h), img)
 		elif format == "CMP":
 			texhead.format = 14
 			''' ADD toCMP '''
-			print "toCMP not done"
-			sys.exit(2)
+			raise Exception("toCMP not done")
 			#tpldata = self.toCMP((w, h), img)
 		texhead.data_off = 0x14 + len(texhead)
 		texhead.wrap = [0, 0]
