@@ -459,7 +459,7 @@ class TPL():
 				raise TypeError("Unsupported TPL Format: " + str(tex.format))
 		
 		output = Image.fromstring("RGBA", (w, h), rgbdata)
-		ext = outfile[outfile.rfind("."):]
+		ext = outfile[outfile.rfind(".")+1:]
 		output.save(outfile, ext)
 		
 		return outfile
