@@ -1,6 +1,4 @@
 import os, hashlib, struct, subprocess, fnmatch, shutil, urllib, array
-import wx
-import png
 from PIL import Image
 
 from Crypto.Cipher import AES
@@ -201,7 +199,6 @@ class TPL():
 						else:
 							rgba = flatten(inp[x+y*w])
 							i1 = (rgba >> 0) & 0xff
-							#rgba = img[x + 1 + (y * w)]
 							rgba = flatten(inp[x+1+y*w])
 							i2 = (rgba >> 0) & 0xff
 
@@ -282,7 +279,6 @@ class TPL():
 							g = (rgba >> 8)  & 0xff
 							b = (rgba >> 16) & 0xff
 							newpixel = ((b >>3) << 11) | ((g >>2) << 5) | ((r >>3) << 0)
-						#out[outp] = swap16(newpixel)
 						out[outp] = newpixel
 						outp += 1
 		return out
@@ -321,7 +317,6 @@ class TPL():
 								newpixel |= r << 10
 								newpixel |= g << 5
 								newpixel |= b << 0
-						#out[outp] = swap16(newpixel)
 						out[outp] = newpixel
 						outp += 1
 		return out
@@ -349,13 +344,11 @@ class TPL():
 						z += 1
 				if(z == 16):
 					for i in range(16):
-						print i, w*h*4
 						out[iv] = lr[i]
 						iv += 1
 						out[iv] = la[i]
 						iv += 1
 					for i in range(16):
-						print i, w*h*4
 						out[iv] = lb[i]
 						iv += 1
 						out[iv] = lg[i]
@@ -403,7 +396,6 @@ class TPL():
 				rgbdata = self.I4((w, h), tpldata)
 			
 			elif(tex.format == 1): #I8, 8-bit
-				print w*h, tex.data_off, len(data)-tex.data_off
 				tpldata = struct.unpack(">" + str(w * h) + "B", data[tex.data_off:tex.data_off + (w * h * 1)])
 				rgbdata = self.I8((w, h), tpldata)
 			elif(tex.format == 2): #IA4, 8-bit
@@ -457,18 +449,15 @@ class TPL():
 					rgbdata = self.CI14X2((w, h), tpldata, paldata)
 			elif(tex.format == 14):
 				sz = ((w + 7) >> 3) * ((w + 7) >> 3) * 32
-				#print sz
-				#print len(data[tex.data_off:])
 				tpldata = struct.unpack(">" + str(sz / 2) + "H", data[tex.data_off:tex.data_off + sz])
 				
 				rgbdata = self.CMP((w, h), tpldata)
 			else:
 				raise TypeError("Unsupported TPL Format: " + str(tex.format))
 		
-		#output = png.Writer(width = w, height = h, alpha = True, bitdepth = 8)
 		output = Image.fromstring("RGBA", (w, h), rgbdata)
-		#output.write(open(outfile, "wb"), rgbdata)
-		output.save(outfile, "PNG")
+		ext = outfile[outfile.rfind("."):]
+		output.save(outfile, ext)
 		
 		return outfile
 	def getSizes(self):
@@ -502,14 +491,13 @@ class TPL():
 		class imp(wx.Panel):
 			def __init__(self, parent, id, im):
 				wx.Panel.__init__(self, parent, id)
-				w = im.GetWidth()
-				h = im.GetHeight()
+				w, h = im.size
 				wx.StaticBitmap(self, -1, im, ( ((max(w, 300) - w) / 2), ((max(h, 200) - h) / 2) ), (w, h))
 
-		self.toPNG("tmp.png")
-		img = wx.Image("tmp.png", wx.BITMAP_TYPE_ANY).ConvertToBitmap()
-		w = img.GetWidth()
-		h = img.GetHeight()
+		import wx
+		self.toImage("tmp.png")
+		img = Image.open("tmp.png")
+		w, h = img.size
 		app = wx.App(redirect = True)
 		frame = wx.Frame(None, -1, "TPL (" + str(w) + ", " + str(h) + ")", size = (max(w, 300), max(h, 200)))
 		image = imp(frame, -1, img)
