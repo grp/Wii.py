@@ -300,6 +300,247 @@ class CONF:
 		"""sets the Serial Number key. (Shortcut for setKeyValue("SERNO", value))"""
 		return self.setKeyValue("SERNO", value)
 
+class netConfig:
+	"""This class performs network configuration. The file is located on the NAND at /shared2/sys/net/02/config.dat."""
+	class configEntry(Struct):
+		__endian__ = Struct.BE
+		def __format__(self):
+			self.selected = Struct.uint8
+			self.padding_1 = Struct.string(1987)
+			self.ssid = Struct.string(32)
+			self.padding_2 = Struct.uint8
+			self.ssid_len = Struct.uint8
+			self.padding_3 = Struct.string(2)
+			self.padding_4 = Struct.uint8
+			self.encryption = Struct.uint8	# OPEN: 0x00, WEP: 0x01, WPA-PSK (TKIP): 0x04, WPA2-PSK (AES): 0x05, WPA-PSK (AES): 0x06
+			self.padding_5 = Struct.string(2)
+			self.padding_6 = Struct.uint8
+			self.key_len = Struct.uint8
+			self.padding_7 = Struct.string(2)
+			self.key = Struct.string(64)
+			self.padding_3 = Struct.string(236)
+
+	def __init__(self, conf):
+		self.f = conf
+		if(not os.path.isfile(self.f)):
+			fp = open(self.f, "wb")
+			fp.write("\x00\x00\x00\x00\x01\x07\x00\x00")
+			fp.write("\x00" * 0x91C * 3)
+			fp.close()
+		fp = open(self.f, "rb")
+		head = fp.read(8)
+		if(head != "\x00\x00\x00\x00\x01\x07\x00\x00"):
+			print("Config file is invalid!\n")
+
+	def getNotBlank(self, config):
+		fp = open(self.f, "rb")
+		fp.seek(8 + (0x91C * config))
+		sel = unpack(">B", fp.read(1))[0]
+		fp.close()
+		if(sel & 0x20):
+			return 1
+		return 0
+
+
+	def getIPType(self, config):
+		if(not self.getNotBlank(config)):
+			return None
+		fp = open(self.f, "rb")
+		fp.seek(8 + (0x91C * config))
+		sel = unpack(">B", fp.read(1))[0]
+		if(sel & 0x04):
+			return 0
+		else:
+			return 1
+		fp.close()
+		return sel
+
+	def getWireType(self, config):
+		if(not self.getNotBlank(config)):
+			return None
+		fp = open(self.f, "rb")
+		fp.seek(8 + (0x91C * config))
+		sel = unpack(">B", fp.read(1))[0]
+		if(sel & 0x02):
+			return 0
+		else:
+			return 1
+		fp.close()
+
+	def getSSID(self, config):
+		if(not self.getNotBlank(config)):
+			return None
+		fp = open(self.f, "rb")
+		fp.seek(8 + (0x91C * config) + 2021)
+		len = unpack(">B", fp.read(1))[0]
+		fp.seek(8 + (0x91C * config) + 1988)
+		ssid = fp.read(len)
+		fp.close()
+		return ssid
+
+	def getEncryptionType(self, config):
+		if(not self.getNotBlank(config)):
+			return None
+		fp = open(self.f, "rb")
+		fp.seek(8 + (0x91C * config) + 2025)
+		crypt = unpack(">B", fp.read(1))[0]
+		type = ""
+		if(crypt == 0):
+			type = "OPEN"
+		elif(crypt == 1):
+			type = "WEP"
+		elif(crypt == 4):
+			type = "WPA (TKIP)"
+		elif(crypt == 5):
+			type = "WPA2"
+		elif(crypt == 6):
+			type = "WPA (AES)"
+		else:
+			print("Invalid crypto type %02X. Valid types are: ``OPEN'', ``WEP'', ``WPA (TKIP)'', ``WPA2'', or ``WPA (AES)''\n" % crypt)
+			fp.close()
+			return None
+		fp.close()
+		return type
+
+	def getEncryptionKey(self, config):
+		if(not self.getNotBlank(config)):
+			return None
+		fp = open(self.f, "rb")
+		fp.seek(8 + (0x91C * config) + 2025)
+		crypt = unpack(">B", fp.read(1))[0]
+		type = ""
+		if(crypt == 0):
+			type = "OPEN"
+		elif(crypt == 1):
+			type = "WEP"
+		elif(crypt == 4):
+			type = "WPA (TKIP)"
+		elif(crypt == 5):
+			type = "WPA2"
+		elif(crypt == 6):
+			type = "WPA (AES)"
+		else:
+			print("Invalid crypto type %02X. Valid types are: ``OPEN'', ``WEP'', ``WPA (TKIP)'', ``WPA2'', or ``WPA (AES)''\n" % crypt)
+			fp.close()
+			return None
+		if(crypt != "\x00"):
+			fp.seek(8 + (0x91C * config) + 2029)
+			keylen = unpack(">B", fp.read(1))[0]
+			fp.seek(8 + (0x91C * config) + 2032)
+			key = fp.read(keylen)
+			fp.close()
+			return key
+		fp.close()
+		return None
+
+	def clearConfig(self, config):
+		fp = open(self.f, "rb+")
+		fp.seek(8 + (0x91C * config))
+		sel = unpack(">B", fp.read(1))[0]
+		sel &= 0xDF
+		fp.seek(8 + (0x91C * config))
+		fp.write(pack(">B", sel))
+		fp.close()
+
+	def setNotBlank(self, config):
+		fp = open(self.f, "rb+")
+		fp.seek(8 + (0x91C * config))
+		sel = unpack(">B", fp.read(1))[0]
+		sel |= 0x20
+		fp.seek(8 + (0x91C * config))
+		fp.write(pack(">B", sel))
+		fp.close()
+
+	def setIPType(self, config, static):
+		fp = open(self.f, "rb+")
+		fp.seek(8 + (0x91C * config))
+		sel = unpack(">B", fp.read(1))[0]
+		if(not static):
+			sel |= 0x04
+		else:
+			sel &= 0xFB
+		fp.seek(8 + (0x91C * config))
+		fp.write(pack(">B", sel))
+		fp.close()
+		self.setNotBlank(config)
+
+	def setWireType(self, config, wired):
+		fp = open(self.f, "rb+")
+		fp.seek(8 + (0x91C * config))
+		sel = unpack(">B", fp.read(1))[0]
+		if(not wired):
+			sel |= 0x02
+		else:
+			sel &= 0xFD
+		fp.seek(8 + (0x91C * config))
+		fp.write(pack(">B", sel))
+		fp.close()
+		self.setNotBlank(config)
+
+	def setSSID(self, config, ssid):
+		fp = open(self.f, "rb+")
+		fp.seek(8 + (0x91C * config) + 1988)
+		fp.write(ssid)
+		fp.seek(8 + (0x91C * config) + 2021)
+		fp.write(a2b_hex("%02X" % len(ssid)))
+		fp.close()
+		self.setNotBlank(config)
+
+	def setEncryption(self, config, crypt, key):
+		fp = open(self.f, "rb+")
+		fp.seek(8 + (0x91C * config) + 2025)
+		if(crypt == "OPEN"):
+			fp.write("\x00")
+		elif(crypt == "WEP"):
+			fp.write("\x01")
+		elif(crypt == "WPA (TKIP)"):
+			fp.write("\x04")
+		elif(crypt == "WPA2"):
+			fp.write("\x05")
+		elif(crypt == "WPA (AES)"):
+			fp.write("\x06")
+		else:
+			print("Invalid crypto type. Valid types are: ``OPEN'', ``WEP'', ``WPA (TKIP)'', ``WPA2'', or ``WPA (AES)''\n")
+			fp.close()
+			return
+		if(crypt != "OPEN"):
+			fp.seek(8 + (0x91C * config) + 2029)
+			fp.write(a2b_hex("%02X" % len(key)))
+			fp.seek(8 + (0x91C * config) + 2032)
+			fp.write(key)
+		fp.close()
+		self.setNotBlank(config)
+	
+	def selectConfig(self, config):
+		fp = open(self.f, "rb+")
+		fp.seek(8 + (0x91C * 0))
+		sel = unpack(">B", fp.read(1))[0]
+		if(config == 0):
+			sel |= 0x80
+		else:
+			sel &= 0x7F
+		fp.seek(8 + (0x91C * 0))
+		fp.write(pack(">B", sel))
+		fp.seek(8 + (0x91C * 1))
+		sel = unpack(">B", fp.read(1))[0]
+		if(config == 1):
+			sel |= 0x80
+		else:
+			sel &= 0x7F
+		fp.seek(8 + (0x91C * 1))
+		fp.write(pack(">B", sel))
+		fp.seek(8 + (0x91C * 2))
+		sel = unpack(">B", fp.read(1))[0]
+		if(config == 2):
+			sel |= 0x80
+		else:
+			sel &= 0x7F
+		fp.seek(8 + (0x91C * 2))
+		fp.write(pack(">B", sel))
+		self.setNotBlank(config)
+		fp.close()
+
+
 class ContentMap:
 	"""This class performs all content.map related actions. Has functions to add contents, and find contents by hash.
 	The ``map'' parameter is the location of the content.map file."""

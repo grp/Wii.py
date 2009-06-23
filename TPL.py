@@ -82,7 +82,7 @@ class TPL():
 		else:
 			self.file = None
 			self.data = file
-	def toTPL(self, outfile, width = 0, height = 0, format="RGBA8"): #single texture only
+	def toTPL(self, outfile, (width, height) = (None, None), format = "RGBA8"): #single texture only
 		"""This converts a PNG image into a TPL. The PNG image is specified as the file parameter to the class initializer, while the output filename is specified here as the parameter outfile. Width and height are optional parameters and specify the size to resize the image to, if needed. Returns the output filename.
 		
 		This only can create TPL images with a single texture."""
@@ -97,8 +97,8 @@ class TPL():
 		
 		img = Image.open(self.file)
 		theWidth, theHeight = img.size
-		if(width !=0 and height != 0 and (width != theWidth or height != theHeight)):
-			img.resize(width, height)
+		if(width != None and height != None and (width != theWidth or height != theHeight)):
+			img = img.resize((width, height), Image.ANTIALIAS)
 		w, h = img.size
 		
 		texhead = self.TPLTextureHeader()
@@ -145,6 +145,7 @@ class TPL():
 			''' ADD toCMP '''
 			raise Exception("toCMP not done")
 			#tpldata = self.toCMP((w, h), img)
+			
 		texhead.data_off = 0x14 + len(texhead)
 		texhead.wrap = [0, 0]
 		texhead.filter = [1, 1]
@@ -187,7 +188,6 @@ class TPL():
 		f.close()
 		
 		return outfile
-		
 	def toI4(self, (w, h), img):
 		out = [0 for i in range(align(w, 4) * align(h, 4) / 2)]
 		outp = 0
@@ -510,13 +510,15 @@ class TPL():
 		class imp(wx.Panel):
 			def __init__(self, parent, id, im):
 				wx.Panel.__init__(self, parent, id)
-				w, h = im.size
+				w = img.GetWidth()
+				h = img.GetHeight()
 				wx.StaticBitmap(self, -1, im, ( ((max(w, 300) - w) / 2), ((max(h, 200) - h) / 2) ), (w, h))
 
 		self.toImage("tmp.png")
-		img = Image.open("tmp.png")
-		w, h = img.size
-		app = wx.App(redirect = True)
+		img = wx.Image("tmp.png", wx.BITMAP_TYPE_ANY).ConvertToBitmap()
+		w = img.GetWidth()
+		h = img.GetHeight()
+		app = wx.App(redirect = False)
 		frame = wx.Frame(None, -1, "TPL (" + str(w) + ", " + str(h) + ")", size = (max(w, 300), max(h, 200)))
 		image = imp(frame, -1, img)
 		frame.Show(True)
