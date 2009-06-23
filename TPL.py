@@ -516,7 +516,7 @@ class TPL():
 				for k in xrange(2):
 					for l in xrange(i, i + 4, 1):
 						for m in xrange(j, j + 4, 1):
-							texel = (data[inp])
+							texel = data[inp]
 							inp += 1
 							if (m >= x) or (l >= y):
 								continue
