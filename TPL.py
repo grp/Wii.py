@@ -1,7 +1,6 @@
-import os, hashlib, struct, subprocess, fnmatch, shutil, urllib, array
+import os, struct, subprocess, fnmatch, shutil, urllib, array
 from PIL import Image
 
-from Crypto.Cipher import AES
 from Struct import Struct
 
 from common import *
@@ -549,11 +548,11 @@ class TPL():
 	def RGB5A3(self, (w, h), jar):
 		out = [0 for i in range(w * h)]
 		i = 0
-		for y in range(0, h, 4):
-			for x in range(0, w, 4):
-				for y1 in range(y, y + 4):
-					for x1 in range(x, x + 4):
-						if(y1 >= h or x1 >= w):
+		for y1 in range(0, h, 4):
+			for x1 in range(0, w, 4):
+				for y in range(y1, y1 + 4):
+					for x in range(x1, x1 + 4):
+						if(y >= h or x >= w):
 							continue
 						pixel = jar[i]
 						i += 1
@@ -570,7 +569,7 @@ class TPL():
 							a = 255 - (((pixel >> 12) & 0x07) * 64) / 7
 
 						rgba = (r<<0) | (g<<8) | (b<<16) | (a<<24)
-						out[y1*w+x1] = rgba
+						out[y*w+x] = rgba
 		return ''.join(Struct.uint32(p) for p in out)
 	def RGB565(self, (w, h), jar):
 		out = [0 for i in range(w * h)]

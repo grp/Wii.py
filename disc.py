@@ -1,8 +1,7 @@
-import os, hashlib, struct, subprocess, fnmatch, shutil, urllib, array
+import os, struct, subprocess, fnmatch, shutil, urllib, array
 
 import time
 from title import *
-from Crypto.Cipher import AES
 from Struct import Struct
 
 from common import *
@@ -126,15 +125,14 @@ class WOD: #WiiOpticalDisc
 			except:
 				self.markedBlocks.append(blockStart + x)
 				
-		print '%s (%i blocks marked)' % (self.markedBlocks, len(self.markedBlocks))
-		
+		#print '%s (%i blocks marked)' % (self.markedBlocks, len(self.markedBlocks))
 	def decryptBlock(self, block):
 		if len(block) != 0x8000:
 			raise Exception('Block size too big/small')	
 			
-		blockIV = block[0x3d0:0x3dF + 1]
-		print 'IV %s (len %i)\n' % (hexdump(blockIV), len(blockIV))
-		blockData = block[0x0400:0x7FFF]
+		blockIV = block[0x3d0:0x3e0]
+		#print 'IV %s (len %i)\n' % (hexdump(blockIV), len(blockIV))
+		blockData = block[0x0400:0x8000]
 		
 		return Crypto().decryptData(self.partitionKey, blockIV, blockData, True)
 		
@@ -144,18 +142,16 @@ class WOD: #WiiOpticalDisc
 		readLen = (align(size, 0x7C00)) / 0x7C00
 		blob = ''
 		
-		print 'Read at 0x%x (Start on %i block, ends at %i block) for %i bytes' % (offset, readStart, readStart + readLen, size)
+		#print 'Read at 0x%x (Start on %i block, ends at %i block) for %i bytes' % (offset, readStart, readStart + readLen, size)
 		
 		self.fp.seek(self.partitionOffset + 0x20000 + (0x8000 * readStart))
-		if readLen == 0:
+
+		for x in range(readLen + 1):
 			blob += self.decryptBlock(self.fp.read(0x8000))
-		else:
-			for x in range(readLen + 1):
-				blob += self.decryptBlock(self.fp.read(0x8000))
 		
 		self.markContent(offset, size)
 		
-		print 'Read from 0x%x to 0x%x' % (offset, offset + size)
+		#print 'Read from 0x%x to 0x%x' % (offset, offset + size)
 		offset -= readStart * 0x7C00
 		return blob[offset:offset + size]
 		
@@ -166,60 +162,91 @@ class WOD: #WiiOpticalDisc
 		# FIXMII : Needs testing, extracting the tmd cause to have 10 null bytes in the end instead of 10 useful bytes at start :|
 		self.fp.seek(self.partitionOffset + 0x2A4 + offset)
 		return self.fp.read(size)
-		
-	def parseFst(self, fst, names, i, isLast):
-		
-		fileName = names[struct.unpack(">I", fst[12 * i:12 * i + 4])[0] & 0x00ffffff]
-		fileSize = struct.unpack(">I", fst[12 * i + 8:12 * i + 8 + 4])[0]
-		
+	class fstObject(object):
+		#TODO: add ability to extract file by path
+		def __init__(self, name, iso=None):
+			''' do init stuff here '''
+			self.parent = None
+			self.type = 1 #directory: 1, file:0
+			self.name = name
+			self.nameOff = 0
+			self.fileOffset = 0
+			self.size = 0
+			self.children = []
+			self.iso = iso
+		def addChild(self, child):
+			if self.type == 0:
+				raise Exception('I am not a directory.')
+			child.parent = self
+			self.children.append(child)
+		def getISO(self):
+			if(self.parent == None):
+				return self.iso
+			return self.parent.getISO()
+		def getList(self, pad=0):
+			if self.type == 0:
+				return ("\t" * pad) + self.getPath() + "\n"
+			str = "%s[%s]\n" % ("\t" * (pad), self.getPath())
+			for child in self.children:
+				str += child.getList(pad+1)
+			return str
+		def count(self):
+			if self.type == 0:
+				return 1
+			i = 0
+			for child in self.children:
+				i += child.count()
+			return i
+		def getPath(self):
+			if(self.parent == None):
+				return "/"
+			if(self.type == 1):
+				return self.parent.getPath() + self.name + "/"
+			return self.parent.getPath() + self.name
+		def write(self, cwd):
+			if(self.type==0):
+				print cwd + self.getPath()
+				#print self.nameOff
+				open(cwd + self.getPath(), 'w+b').write(self.getISO().readPartition(self.fileOffset, self.size))
+			if(self.type==1):
+				if(self.parent != None):
+					try:
+						os.makedirs(cwd + self.getPath())
+					except:
+						j = None	
+				for child in self.children:
+					child.write(cwd)
+	def parseFst(self, fst, names, i, fstDir):	
+		size = struct.unpack(">I", fst[(12*i + 8):(12*i + 8) + 4])[0]
+		nameOff = struct.unpack(">I", fst[(12*i):(12*i) + 4])[0] & 0x00ffffff
+		fileName = names[nameOff:]
+		fileName = fileName[:fileName.find('\0')]
+			
 		if i == 0:
-			for j in range(1, fileSize):
-				self.parseFst(fst, names, j, (j == fileSize - 1))
-			return fileSize
-		
-		if fst[12 * i]:
-			parentDir = struct.unpack(">I", fst[12 * i + 4:12 * i + 4 + 4])[0]
-			isLast = struct.unpack(">I", fst[12 * parentDir + 8:12 * parentDir + 8 + 4] == fileSize)[0]
-			
-			for j in range(1, fileSize):
-				self.parseFst(fst, names, j, (j == fileSize - 1))
-				
-			return fileSize
+			j = 1
+			while(j<size):
+				j = self.parseFst(fst, names, j, fstDir)
+			return size
+		if fst[12 * i] == '\x01':
+			newDir = self.fstObject(fileName)
+			j = i+1
+			while(j<size):
+				j = self.parseFst(fst, names, j, newDir)
+			fstDir.addChild(newDir)
+			return size
 		else:
-			fileOffset = 4 * struct.unpack(">I", fst[12 * i + 4, 12 * i + 4 + 4])
-			markContent(fileOffset, fileSize)
-			open(fileName, 'w+b').write(self.readPartition(fileOffset, fileSize))		
-			
-	"""def parseFst(self, buffer):
-		rootFiles = struct.unpack('>I', buffer[8:12])[0]
-		namesTable = buffer[12 * (rootFiles):]
-		
-		open('fst.bin', 'w+b').write(buffer)
-	 
-		for i in range(1, rootFiles):
-			fstTableEntry = buffer[12 * i:12 * (i + 1)]
-						
-			if fstTableEntry[0] == '\x01':
-				fileType = 1
-			else:
-				fileType = 0
-			
-			temp = struct.unpack('>I', fstTableEntry[0x0:0x4])[0]
-			nameOffset = struct.unpack('>I', fstTableEntry[0x0:0x4])[0] & 0x00ffffff
-			fileName = namesTable[nameOffset:].split('\x00')[0] 
-			#print '%s' % namesTable[nameOffset:]
-			#print '%s %s\n' % (namesTable[nameOffset:].split('\x00')[0], namesTable[nameOffset:].split('\x00')[1])
-			fileOffset = 4 * (struct.unpack('>I', fstTableEntry[0x4:0x8])[0])
-			fileLenght = struct.unpack('>I', fstTableEntry[0x8:0x0c])[0]
-			if fileName == '':
-				time.sleep(5)			
-			
-			print '%s [%i] [0x%X] [0x%X] [0x%X]' % (fileName, fileType, fileOffset, fileLenght, nameOffset)
-			
-		os.chdir('..')"""
+			fileOffset = 4 * struct.unpack(">I", fst[(12*i + 4):(12*i + 4) + 4])[0]
+			newFile = self.fstObject(fileName)
+			newFile.type = 0
+			newFile.fileOffset = fileOffset
+			newFile.size = size
+			newFile.nameOff = nameOff
+			fstDir.addChild(newFile)
+			#self.markContent(fileOffset, size)
+			return i+1
 
 	def openPartition(self, index):
-		if index > self.partitionCount:
+		if index+1 > self.partitionCount:
 			raise ValueError('Partition index too big')
 			
 		self.partitionOpen = index
@@ -258,8 +285,6 @@ class WOD: #WiiOpticalDisc
 
 	def getFst(self):
 		fstBuf = self.readPartition(self.fstOffset, self.fstSize)
-		fileNumber = 1000#struct.unpack(">I", fstBuf[0x8:0xc])
-		self.parseFst(fstBuf, fstBuf[12 * fileNumber], 0, 0)
 		return fstBuf
 		
 	def getIsoBootmode(self):

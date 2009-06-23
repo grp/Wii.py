@@ -1,6 +1,5 @@
-import os, hashlib, struct, subprocess, fnmatch, shutil, urllib, array
+import os, struct, subprocess, fnmatch, shutil, urllib, array
 
-from Crypto.Cipher import AES
 from Struct import Struct
 
 from common import *
@@ -253,7 +252,7 @@ class IMD5():
 			imd5.zeroes[i] = 0x00
 		imd5.tag = "IMD5"
 		imd5.size = len(data)
-		imd5.crypto = str(hashlib.md5(data).digest())
+		imd5.crypto = str(Crypto().createMD5Hash(data))
 		data = imd5.pack() + data
 		
 		if(fn != ""):
@@ -321,7 +320,7 @@ class IMET():
 		imet.hash = "\x00" * 16
 		
 		tmp = imet.pack()
-		imet.hash = hashlib.md5(tmp[0x40:0x640]).digest() #0x00 or 0x40?
+		imet.hash = Crypto().createMD5Hash(tmp[0x40:0x640]) #0x00 or 0x40?
 		
 		data = imet.pack() + data
 		

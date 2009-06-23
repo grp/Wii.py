@@ -1,7 +1,5 @@
-import os, hashlib, struct, subprocess, fnmatch, shutil, urllib, array
+import os, struct, subprocess, fnmatch, shutil, urllib, array
 
-from hashlib import md5
-from Crypto.Cipher import AES
 from Struct import Struct
 
 from common import *
@@ -180,7 +178,7 @@ class Savegame():
 		self.hdr = self.savegameHeader().unpack(headerBuffer[:0x20])
 		
 		#headerBuffer.replace(self.hdr.md5hash, '\x0e\x65\x37\x81\x99\xbe\x45\x17\xab\x06\xec\x22\x45\x1a\x57\x93')
-		#print 'Reashed md5 : %s' % hexdump(hashlib.md5(headerBuffer).digest())
+		#print 'Reashed md5 : %s' % hexdump(Crypto().createMD5Hash(headerBuffer))
 		
 		self.bnr = self.savegameBanner().unpack(headerBuffer[0x20:])
 		
