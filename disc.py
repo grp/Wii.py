@@ -218,8 +218,8 @@ class WOD: #WiiOpticalDisc
 				for child in self.children:
 					child.write(cwd)
 	def parseFst(self, fst, names, i, fstDir):	
-		size = struct.unpack(">I", fst[12 * i + 8:12 * i + 8 + 4])[0]
-		nameOff = struct.unpack(">I", fst[12 * i:12 * i + 4])[0] & 0x00ffffff
+		size = struct.unpack(">I", fst[(12*i + 8):(12*i + 8) + 4])[0]
+		nameOff = struct.unpack(">I", fst[(12*i):(12*i) + 4])[0] & 0x00ffffff
 		fileName = names[nameOff:]
 		fileName = fileName[:fileName.find('\0')]
 			
@@ -236,7 +236,7 @@ class WOD: #WiiOpticalDisc
 			fstDir.addChild(newDir)
 			return size
 		else:
-			fileOffset = 4 * struct.unpack(">I", fst[12 * i + 4: 12 * i + 4 + 4])[0]
+			fileOffset = 4 * struct.unpack(">I", fst[(12*i + 4):(12*i + 4) + 4])[0]
 			newFile = self.fstObject(fileName)
 			newFile.type = 0
 			newFile.fileOffset = fileOffset
