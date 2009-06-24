@@ -369,14 +369,14 @@ class TPL():
 						z += 1
 				if(z == 16):
 					for i in range(16):
-						out[iv] = lr[i] & 0xff
-						iv += 1
 						out[iv] = la[i] & 0xff
 						iv += 1
-					for i in range(16):
-						out[iv] = lb[i] & 0xff
+						out[iv] = lr[i] & 0xff
 						iv += 1
+					for i in range(16):
 						out[iv] = lg[i] & 0xff
+						iv += 1
+						out[iv] = lb[i] & 0xff
 						iv += 1
 					z = 0
 		return out
@@ -538,7 +538,7 @@ class TPL():
 				for k in xrange(2):
 					for l in xrange(i, i + 4, 1):
 						for m in xrange(j, j + 4, 1):
-							texel = Struct.uint16(data[inp*2:inp*2+2], endian = '>')
+							texel = Struct.uint16(data[inp * 2:inp * 2 + 2], endian = '>')
 							inp += 1
 							if (m >= x) or (l >= y):
 								continue
@@ -554,13 +554,13 @@ class TPL():
 	def RGB5A3(self, (w, h), jar):
 		out = [0 for i in range(w * h)]
 		i = 0
-		for y1 in range(0, h, 4):
-			for x1 in range(0, w, 4):
-				for y in range(y1, y1 + 4):
-					for x in range(x1, x1 + 4):
-						if(y >= h or x >= w):
+		for y in range(0, h, 4):
+			for x in range(0, w, 4):
+				for y1 in range(y, y + 4):
+					for x1 in range(x, x + 4):
+						if(y1 >= h or x1 >= w):
 							continue
-						pixel = Struct.uint16(jar[i*2:i*2+2], endian='>')
+						pixel = Struct.uint16(jar[i * 2:i * 2 + 2], endian='>')
 						i += 1
 						
 						if(pixel & (1 << 15)): #RGB555
@@ -574,8 +574,8 @@ class TPL():
 							r = (((pixel >> 4) & 0x0F) * 255) / 15
 							a = (((pixel >> 0) & 0x07) * 64) / 7
 
-						rgba = (r<<0) | (g<<8) | (b<<16) | (a<<24)
-						out[y*w+x] = rgba
+						rgba = (r << 0) | (g << 8) | (b << 16) | (a << 24)
+						out[(y1 * w) + x1] = rgba
 		return ''.join(Struct.uint32(p) for p in out)
 	def RGB565(self, (w, h), jar):
 		out = [0 for i in range(w * h)]
@@ -586,7 +586,7 @@ class TPL():
 					for x1 in range(x, x + 4):
 						if(y1 >= h or x1 >= w):
 							continue
-						pixel = Struct.uint16(jar[i*2:i*2+2], endian='>')
+						pixel = Struct.uint16(jar[i * 2:i * 2 + 2], endian='>')
 						i += 1
 						
 						b = (((pixel >> 11) & 0x1F) << 3) & 0xff
@@ -594,8 +594,8 @@ class TPL():
 						r = (((pixel >> 0) & 0x1F) << 3) & 0xff
 						a = 255
 
-						rgba = (r<<0) | (g<<8) | (b<<16) | (a<<24)
-						out[y1*w+x1] = rgba
+						rgba = (r << 0) | (g << 8) | (b << 16) | (a << 24)
+						out[y1 * w + x1] = rgba
 		return ''.join(Struct.uint32(p) for p in out)
 	def I4(self, (w, h), jar):
 		out = [0 for i in range(w * h)]
@@ -613,8 +613,8 @@ class TPL():
 						b = (pixel >> 4) * 255 / 15
 						a = 255
 
-						rgba = (r<<0) | (g<<8) | (b<<16) | (a<<24)
-						out[y1*w+x1] = rgba
+						rgba = (r << 0) | (g << 8) | (b << 16) | (a << 24)
+						out[y1 * w + x1] = rgba
 						
 						if(y1 >= h or x1 >= w):
 							continue
@@ -626,8 +626,8 @@ class TPL():
 						b = (pixel & 0x0F) * 255 / 15
 						a = 255
 
-						rgba = (r<<0) | (g<<8) | (b<<16) | (a<<24)
-						out[y1*w+x1+1] = rgba
+						rgba = (r << 0) | (g << 8) | (b << 16) | (a << 24)
+						out[y1 * w + x1 + 1] = rgba
 		return ''.join(Struct.uint32(p) for p in out)
 	def IA4(self, (w, h), jar):
 		out = [0 for i in range(w * h)]
@@ -646,8 +646,8 @@ class TPL():
 						b = ((pixel & 0x0F) * 255 / 15) & 0xff
 						a = (((pixel >> 4) * 255) / 15) & 0xff
 
-						rgba = (r<<0) | (g<<8) | (b<<16) | (a<<24)
-						out[y1*w+x1] = rgba
+						rgba = ( r<< 0) | (g << 8) | (b << 16) | (a << 24)
+						out[y1 * w + x1] = rgba
 		return ''.join(Struct.uint32(p) for p in out)
 	def I8(self, (w, h), jar):
 		out = [0 for i in range(w * h)]
@@ -666,8 +666,8 @@ class TPL():
 						b = pixel
 						a = 255
 
-						rgba = (r<<0) | (g<<8) | (b<<16) | (a<<24)
-						out[y1*w+x1] = rgba
+						rgba = (r << 0) | (g << 8) | (b << 16) | (a << 24)
+						out[y1 * w + x1] = rgba
 		return ''.join(Struct.uint32(p) for p in out)
 	def IA8(self, (w, h), jar):
 		out = [0 for i in range(w * h)]
@@ -678,7 +678,7 @@ class TPL():
 					for x1 in range(x, x + 4):
 						if(y1 >= h or x1 >= w):
 							continue
-						pixel = Struct.uint16(jar[i*2:i*2+2], endian='>')
+						pixel = Struct.uint16(jar[i * 2:i * 2 + 2], endian='>')
 						i += 1
 						
 						r = (pixel >> 8) & 0xff
@@ -686,8 +686,8 @@ class TPL():
 						b = (pixel >> 8) & 0xff
 						a = pixel  & 0xff
 
-						rgba = (r<<0) | (g<<8) | (b<<16) | (a<<24)
-						out[y1*w+x1] = rgba
+						rgba = (r << 0) | (g << 8) | (b << 16) | (a << 24)
+						out[y1 * w + x1] = rgba
 		return ''.join(Struct.uint32(p) for p in out)
 	def CI4(self, (w, h), jar, pal):
 		out = [0 for i in range(w * h)]
@@ -705,8 +705,8 @@ class TPL():
 						b = (pal[pixel] & 0x0000FF00) >> 8
 						a = (pal[pixel] & 0x000000FF) >> 0
 
-						rgba = (r<<0) | (g<<8) | (b<<16) | (a<<24)
-						out[y1*w+x1] = rgba
+						rgba = (r << 0) | (g << 8) | (b << 16) | (a << 24)
+						out[y1 * w + x1] = rgba
 						
 						if(y1 >= h or x1 >= w):
 							continue
@@ -718,8 +718,8 @@ class TPL():
 						b = (pal[pixel] & 0x0000FF00) >> 8
 						a = (pal[pixel] & 0x000000FF) >> 0
 
-						rgba = (r<<0) | (g<<8) | (b<<16) | (a<<24)
-						out[y1*w+x1+1] = rgba
+						rgba = (r << 0) | (g << 8) | (b << 16) | (a << 24)
+						out[y1 * w + x1 + 1] = rgba
 		return ''.join(Struct.uint32(p) for p in out)
 	def CI8(self, (w, h), jar, pal):
 		out = [0 for i in range(w * h)]
@@ -738,8 +738,8 @@ class TPL():
 						b = (pal[pixel] & 0x0000FF00) >> 8
 						a = (pal[pixel] & 0x000000FF) >> 0
 
-						rgba = (r<<0) | (g<<8) | (b<<16) | (a<<24)
-						out[y1*w+x1] = rgba
+						rgba = (r << 0) | (g << 8) | (b << 16) | (a << 24)
+						out[y1 * w + x1] = rgba
 		return ''.join(Struct.uint32(p) for p in out)
 	def CMP(self, (w, h), data):
 		temp = [0 for i in range(w * h)]
@@ -758,18 +758,18 @@ class TPL():
 				y1 = (y >> 2) & 0x01
 				y2 = y >> 3
 
-				off = (8*x1) + (16*y1) + (32*x2) + (4*ww*y2)
+				off = (8 * x1) + (16 * y1) + (32 * x2) + (4 * ww * y2)
 
-				c[0] = Struct.uint16(data[off+0:off+2], endian='>')
-				c[1] = Struct.uint16(data[off+2:off+4], endian='>')
-				if c[0] > c[1]:
+				c[0] = Struct.uint16(data[off + 0:off + 2], endian='>')
+				c[1] = Struct.uint16(data[off + 2:off + 4], endian='>')
+				if(c[0] > c[1]):
 					c[2] = avg(2, 1, c[0], c[1])
 					c[3] = avg(1, 2, c[0], c[1])
 				else:
 					c[2] = avg(1, 1, c[0], c[1])
 					c[3] = 0
 
-				px = Struct.uint32(data[off+4:off+8], endian='>')
+				px = Struct.uint32(data[off+4:off + 8], endian='>')
 				ix = x0 + ( 4 * y0 )
 				raw = c[(px >> (30 - (2 * ix))) & 0x03]
 
@@ -797,6 +797,6 @@ class TPL():
 						b = (pal[pixel & 0x3FFF] & 0x0000FF00) >> 8
 						a = (pal[pixel & 0x3FFF] & 0x000000FF) >> 0
 
-						rgba = (r<<0) | (g<<8) | (b<<16) | (a<<24)
-						out[y1*w+x1] = rgba
+						rgba = (r << 0) | (g << 8) | (b << 16) | (a << 24)
+						out[y1 * w + x1] = rgba
 		return ''.join(Struct.uint32(p) for p in out)
