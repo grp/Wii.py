@@ -329,20 +329,27 @@ class updateInf():
 	def __str__(self):
 		out = ''
 		
-		self.buildDate = self.buffer[:0xa]
-		self.fileCount = struct.unpack('I', self.buffer[0x13:0x13 + 4])[0]
+		self.buildDate = self.buffer[:0x10]
+		self.fileCount = struct.unpack('>L', self.buffer[0x10:0x14])[0]
 		
 		out += 'This update partition was built on %s and has %i files\n\n' % (self.buildDate, self.fileCount)
 		out += '[File] [Type] [File name %30s] [Title description   ]\n\n' % ''	
 		
 		for x in range(self.fileCount):
-			updateEntry = self.buffer[0x2f + x * 0x200:0x2f + (x + 1) * 0x200]
-			titleType = ord(updateEntry[0])
-			titlePriority = ord(updateEntry[1])
-			titleFile = updateEntry[0x1:0x1 + 0x50]
-			titleFile = titleFile[:titleFile.find('\x00')]
-			titleName = updateEntry[0x1 + 0x50:0x1 + 0x50 + 0x40]
-			titleName = titleName[:titleName.find('\x00')]
+			updateEntry = self.buffer[0x20 + x * 0x200:0x20 + (x + 1) * 0x200]
+			titleType  = struct.unpack('>L', updateEntry[:0x4])[0]
+			titleAttr  = struct.unpack('>L', updateEntry[0x4:0x8])[0]
+			titleUnk1  = struct.unpack('>L', updateEntry[0x8:0xC])[0]
+			titleType2 = struct.unpack('>L', updateEntry[0xC:0x10])[0]
+			titleFile  = updateEntry[0x10:0x50]
+			titleFile  = titleFile[:titleFile.find('\x00')]
+			titleID    = struct.unpack('>Q', updateEntry[0x50:0x58])[0]
+			titleMajor = struct.unpack('>B', updateEntry[0x58:0x59])[0]
+			titleMinor = struct.unpack('>B', updateEntry[0x59:0x5A])[0]
+			titleName  = updateEntry[0x60:0xA0]
+			titleName  = titleName[:titleName.find('\x00')]
+			titleInfo  = updateEntry[0xA0:0xE0]
+			titleInfo  = titleInfo[:titleInfo.find('\x00')]
 			out += '[%04i] [0x%02x] [%40s] [%20s]\n' % (x, titleType, titleFile, titleName)
 			
 		return out
