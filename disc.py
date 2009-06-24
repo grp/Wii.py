@@ -261,6 +261,8 @@ class WOD: #WiiOpticalDisc
 	
 		self.appLdr = self.Apploader().unpack(self.readPartition (0x2440, 32))
 		self.partitionHdr = self.discHeader().unpack(self.readPartition (0x0, 0x400))
+		
+		self.partitionIos = TMD(self.getPartitionTmd()).getIOSVersion() & 0x00ffffff
 
 	def getFst(self):
 		fstBuf = self.readPartition(self.fstOffset, self.fstSize)
