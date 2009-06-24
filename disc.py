@@ -98,13 +98,12 @@ class WOD: #WiiOpticalDisc
 		blockStart = offset / 0x7C00
 		blockLen = (align(size, 0x7C00)) / 0x7C00
 		
-		for x in range(blockStart, blockLen):
+		for x in range(blockStart, blockStart + blockLen):
 			try:
 				self.markedBlocks.index(blockStart + x)
-			except:
+			except:	
 				self.markedBlocks.append(blockStart + x)
 				
-		#print '%s (%i blocks marked)' % (self.markedBlocks, len(self.markedBlocks))
 	def decryptBlock(self, block):
 		if len(block) != 0x8000:
 			raise Exception('Block size too big/small')	
@@ -114,6 +113,10 @@ class WOD: #WiiOpticalDisc
 		blockData = block[0x0400:0x8000]
 		
 		return Crypto().decryptData(self.partitionKey, blockIV, blockData, True)
+		
+	def readBlock(self, blockNumber):
+		self.fp.seek(self.partitionOffset + 0x20000 + (0x8000 * blockNumber))
+		return self.decryptBlock(self.fp.read(0x8000))
 		
 	def readPartition(self, offset, size):
 		
@@ -135,7 +138,7 @@ class WOD: #WiiOpticalDisc
 		return blob[offset:offset + size]
 		
 	def readUnencrypted(self, offset, size):
-		if offset > 0x20000:
+		if offset + size > 0x20000:
 			raise Exception('This read is on encrypted data')
 			
 		# FIXMII : Needs testing, extracting the tmd cause to have 10 null bytes in the end instead of 10 useful bytes at start :|
@@ -307,6 +310,18 @@ class WOD: #WiiOpticalDisc
 		
 	def getPartitionMainDol(self):
 		return self.readPartition (self.dolOffset, self.dolSize)
+		
+	def dumpPartition(self, fn):
+		rawPartition = open(fn, 'w+b')
+		
+		print 'Partition useful data %i Mb' % (align(len(self.markedBlocks) * 0x7C00, 1024) / 1024 / 1024)
+		
+		self.fp.seek(self.partitionOffset)
+		rawPartition.write(self.fp.read(0x2A4)) # Write teh TIK
+		rawPartition.write(self.readUnencrypted(0, 0x20000 - 0x2A4)) # Write the TMD and other stuff
+		
+		for x in range(len(self.markedBlocks)):
+			rawPartition.write(self.readBlock(self.markedBlocks[x])) # Write each decrypted block
 
 class updateInf():
 	def __init__(self, f):
@@ -323,6 +338,7 @@ class updateInf():
 		for x in range(self.fileCount):
 			updateEntry = self.buffer[0x2f + x * 0x200:0x2f + (x + 1) * 0x200]
 			titleType = ord(updateEntry[0])
+			titlePriority = ord(updateEntry[1])
 			titleFile = updateEntry[0x1:0x1 + 0x50]
 			titleFile = titleFile[:titleFile.find('\x00')]
 			titleName = updateEntry[0x1 + 0x50:0x1 + 0x50 + 0x40]
