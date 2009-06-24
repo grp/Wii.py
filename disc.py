@@ -119,7 +119,7 @@ class WOD: #WiiOpticalDisc
 		blockStart = offset / 0x7C00
 		blockLen = (align(size, 0x7C00)) / 0x7C00
 		
-		for x in range(blockStart, blockLen):
+		for x in range(blockStart, blockStart + blockLen):
 			try:
 				self.markedBlocks.index(blockStart + x)
 			except:
