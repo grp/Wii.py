@@ -3,7 +3,9 @@ import os, struct, subprocess, fnmatch, shutil, urllib, array
 from Struct import Struct
 
 from common import *
-from title import *		
+from title import *	
+from TPL import *
+from PIL import Image
 
 class Savegame():
 	class savegameHeader(Struct):
@@ -108,9 +110,10 @@ class Savegame():
 		ret += 'Wii MAC address %02x:%02x:%02x:%02x:%02x:%02x\n' % (self.bkHdr.wiiMacAddr[0], self.bkHdr.wiiMacAddr[1], self.bkHdr.wiiMacAddr[2], self.bkHdr.wiiMacAddr[3], self.bkHdr.wiiMacAddr[4], self.bkHdr.wiiMacAddr[5])
 		ret += 'Found %i files for %i bytes\n' % (self.bkHdr.filesCount, self.bkHdr.filesSize)
 		ret += 'Total size : %i bytes\n' % self.bkHdr.totalSize
+		ret += 'This save is %i blocks wise' % (self.bkHdr.totalSize / 0x20000)
 		
 		return ret
-
+		
 	def extractFiles(self):
 
 		try:
@@ -196,43 +199,60 @@ class Savegame():
 			
 		self.fileStartOffset = self.fd.tell()
 		
+	def eraseWiiMac(self):
+		self.fd.seek(0xF128)
+		print self.fd.write('\x00' * 6)		
+	
 	def getBanner(self):
-		return self.bnr.banner
+		try:
+			os.mkdir(os.path.dirname(self.f) + '/' + self.bkHdr.gameId)
+		except:
+			pass
+			
+		os.chdir(os.path.dirname(self.f) + '/' + self.bkHdr.gameId)		
+		
+		return Image.fromstring("RGBA", (192, 64), TPL('').RGB5A3((192, 64), self.bnr.banner)).save('banner', 'png')
 		
 	def getIcon(self, index):
 		if index < 0 or index > 7 or index > self.iconCount:
 			return -1
+			
+		try:
+			os.mkdir(os.path.dirname(self.f) + '/' + self.bkHdr.gameId)
+		except:
+			pass
+			
+		os.chdir(os.path.dirname(self.f) + '/' + self.bkHdr.gameId)			
+			
 		if index == 0:
-			return self.bnr.icon0
+			return Image.fromstring("RGBA", (48, 48), TPL('').RGB5A3((48, 48), self.bnr.icon0)).save('icon' + str(index), 'png')
 		if index == 1:
-			return self.bnr.icon1
+			return Image.fromstring("RGBA", (48, 48), TPL('').RGB5A3((48, 48), self.bnr.icon1)).save('icon' + str(index), 'png')
 		if index == 2:
-			return self.bnr.icon2
+			return Image.fromstring("RGBA", (48, 48), TPL('').RGB5A3((48, 48), self.bnr.icon2)).save('icon' + str(index), 'png')
 		if index == 3:
-			return self.bnr.icon3
+			return Image.fromstring("RGBA", (48, 48), TPL('').RGB5A3((48, 48), self.bnr.icon3)).save('icon' + str(index), 'png')
 		if index == 4:
-			return self.bnr.icon4
+			return Image.fromstring("RGBA", (48, 48), TPL('').RGB5A3((48, 48), self.bnr.icon4)).save('icon' + str(index), 'png')
 		if index == 5:
-			return self.bnr.icon5
+			return Image.fromstring("RGBA", (48, 48), TPL('').RGB5A3((48, 48), self.bnr.icon5)).save('icon' + str(index), 'png')
 		if index == 6:
-			return self.bnr.icon6
+			return Image.fromstring("RGBA", (48, 48), TPL('').RGB5A3((48, 48), self.bnr.icon6)).save('icon' + str(index), 'png')
 		if index == 7:
-			return self.bnr.icon7
-		
-	def eraseWiiMac(self):
-		self.fd.seek(0xF128)
-		print self.fd.write('\x00' * 6)
+			return Image.fromstring("RGBA", (48, 48), TPL('').RGB5A3((48, 48), self.bnr.icon7)).save('icon' + str(index), 'png')
 		
 	def getIconsCount(self):
 		return self.iconCount
 		
 	def getSaveString(self, string):
-		if string == 'GAMEID':
+		if string == 'id':
 			return self.bkHdr.gameId
-		elif string == 'GAMETITLE':
+		elif string == 'title':
 			return self.bnr.gameTitle
-		elif string == 'GAMESUBTITLE':
+		elif string == 'subtitle':
 			return self.bnr.gameSubTitle
+		elif string == 'mac':
+			return self.bkHdr.wiiMacAddr[0] + ':' + self.bkHdr.wiiMacAddr[1] + ':' + self.bkHdr.wiiMacAddr[2] + ':' + self.bkHdr.wiiMacAddr[3] + ':' + self.bkHdr.wiiMacAddr[4] + ':' + self.bkHdr.wiiMacAddr[5]
 			
 	def getFilesCount(self):
 		return self.bkHdr.filesCount
