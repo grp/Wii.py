@@ -8,28 +8,6 @@ from common import *
 
 
 class WOD: #WiiOpticalDisc
-	class fsentry:
-		name = ""
-		type = 0
-		parent = None
-		offset = 0
-		lenght = 0
-		
-		def __init__(self, name, type, parent, offset, len):
-			self.name = ""
-			if(parent != None):
-				self.parent = parent
-		def path(self):
-			return parent.path() + "/" + name
-			
-	class fsdir(fsentry):
-		def __init__(self, name, parent):
-			fsentry.__init__(self, name, parent)
-			
-	class fsfile(fsentry):
-		size = 0
-		offset = 0
-		
 	class discHeader(Struct):
 		__endian__ = Struct.BE
 		def __format__(self):
@@ -84,11 +62,12 @@ class WOD: #WiiOpticalDisc
 		ret += 'Found %i channels (table at 0x%x)\n' % (self.channelsCount, self.chansTableOffset)
 		ret += '\n'
 		ret += 'Partition %i opened (type 0x%x) at 0x%x\n' % (self.partitionOpen, self.partitionType, self.partitionOffset)
-		ret += '%s' % self.partitionHdr
-		ret += 'Partition key %s\n' % hexdump(self.partitionKey)
-		ret += 'Tmd at 0x%x (%x)\n' % (self.tmdOffset, self.tmdSize)
-		ret += 'main.dol at 0x%x (%x)\n' % (self.dolOffset, self.dolSize)
-		ret += 'FST at 0x%x (%x)\n' % (self.fstSize, self.fstOffset)
+		ret += 'Partition name : %s' % self.partitionHdr
+		ret += 'Partition key  : %s\n' % hexdump(self.partitionKey)
+		ret += 'Partition IOS  : IOS%i\n' % self.partitionIos
+		ret += 'Partition tmd  : 0x%x (%x)\n' % (self.tmdOffset, self.tmdSize)
+		ret += 'Partition main.dol : 0x%x (%x)\n' % (self.dolOffset, self.dolSize)
+		ret += 'Partition FST  : 0x%x (%x)\n' % (self.fstSize, self.fstOffset)
 		ret += '%s\n' % (self.appLdr)
 		
 		return ret
@@ -242,7 +221,7 @@ class WOD: #WiiOpticalDisc
 			newFile.size = size
 			newFile.nameOff = nameOff
 			fstDir.addChild(newFile)
-			#self.markContent(fileOffset, size)
+			self.markContent(fileOffset, size)
 			return i+1
 
 	def openPartition(self, index):
@@ -282,6 +261,8 @@ class WOD: #WiiOpticalDisc
 	
 		self.appLdr = self.Apploader().unpack(self.readPartition (0x2440, 32))
 		self.partitionHdr = self.discHeader().unpack(self.readPartition (0x0, 0x400))
+		
+		self.partitionIos = TMD(self.getPartitionTmd()).getIOSVersion() & 0x00ffffff
 
 	def getFst(self):
 		fstBuf = self.readPartition(self.fstOffset, self.fstSize)
@@ -327,59 +308,27 @@ class WOD: #WiiOpticalDisc
 	def getPartitionMainDol(self):
 		return self.readPartition (self.dolOffset, self.dolSize)
 
-	def extractPartition(self, index, fn = ""):
+class updateInf():
+	def __init__(self, f):
+		self.buffer = open(f, 'r+b').read()
+	def __str__(self):
+		out = ''
+		
+		self.buildDate = self.buffer[:0xa]
+		self.fileCount = struct.unpack('I', self.buffer[0x13:0x13 + 4])[0]
+		
+		out += 'This update partition was built on %s and has %i files\n\n' % (self.buildDate, self.fileCount)
+		out += '[File] [Type] [File name %30s] [Title description   ]\n\n' % ''	
+		
+		for x in range(self.fileCount):
+			updateEntry = self.buffer[0x2f + x * 0x200:0x2f + (x + 1) * 0x200]
+			titleType = ord(updateEntry[0])
+			titleFile = updateEntry[0x1:0x1 + 0x50]
+			titleFile = titleFile[:titleFile.find('\x00')]
+			titleName = updateEntry[0x1 + 0x50:0x1 + 0x50 + 0x40]
+			titleName = titleName[:titleName.find('\x00')]
+			out += '[%04i] [0x%02x] [%40s] [%20s]\n' % (x, titleType, titleFile, titleName)
+			
+		return out
+			
 
-		if(fn == ""):
-			fn = os.path.dirname(self.f) + "/" + os.path.basename(self.f).replace(".", "_") + "_out"
-		try:
-			origdir = os.getcwd()
-			os.mkdir(fn)
-		except:
-			pass
-		os.chdir(fn)
-		
-		self.fp.seek(0x18)
-		if(struct.unpack(">I", self.fp.read(4))[0] != 0x5D1C9EA3):
-			self.fp.seek(-4, 1)
-			raise ValueError("Not a valid Wii Disc (GC not supported)! Magic: %08x" % struct.unpack(">I", self.fp.read(4))[0])
-
-		self.fp.seek(partitionoffs)
-		
-		tikdata = self.fp.read(0x2A3)
-		open("tik").write(tikdata)
-		self.tik = Ticket("tik")
-		self.titlekey = self.tik.getTitleKey()
-		
-		tmdsz = struct.unpack(">I", self.fp.read(4))[0]
-		tmdoffs = struct.unpack(">I", self.fp.read(4))[0]
-		
-		certsz = struct.unpack(">I", self.fp.read(4))[0]
-		certoffs = struct.unpack(">I", self.fp.read(4))[0]
-		
-		h3offs = struct.unpack(">I", self.fp.read(4))[0] << 2
-		h3sz = 0x18000
-		
-		dataoffs = struct.unpack(">I", self.fp.read(4))[0] << 2
-		datasz = struct.unpack(">I", self.fp.read(4))[0] << 2
-		if(tmdoffs != self.fp.tell()):
-			raise ValueError("TMD is in wrong place, something is fucked...wtf?")
-		
-		tmddata = self.fp.read(tmdsz)
-		open("tmd").write(tmddata)
-		
-		self.tmd = TMD("tmd")
-		
-		
-		print tmd.getIOSVersion()
-		
-		
-		fst.seek(dataoffs)
-		
-		
-		
-		os.chdir("..")
-	def _recurse(self, parent, names, recursion):		
-		if(recursion == 0):
-			pass	
-		
-		
