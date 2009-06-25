@@ -265,7 +265,7 @@ class WOD: #WiiOpticalDisc
 		self.appLdr = self.Apploader().unpack(self.readPartition (0x2440, 32))
 		self.partitionHdr = self.discHeader().unpack(self.readPartition (0x0, 0x400))
 		
-		self.partitionIos = TMD(self.getPartitionTmd()).getIOSVersion() & 0x00ffffff
+		self.partitionIos = TMD(self.getPartitionTmd()).getIOSVersion() & 0x0fffffff
 
 	def getFst(self):
 		fstBuf = self.readPartition(self.fstOffset, self.fstSize)
@@ -333,7 +333,6 @@ class updateInf():
 		self.fileCount = struct.unpack('>L', self.buffer[0x10:0x14])[0]
 		
 		out += 'This update partition was built on %s and has %i files\n\n' % (self.buildDate, self.fileCount)
-		out += '[File] [Type] [File name %30s] [Title description   ]\n\n' % ''	
 		
 		for x in range(self.fileCount):
 			updateEntry = self.buffer[0x20 + x * 0x200:0x20 + (x + 1) * 0x200]
@@ -350,7 +349,14 @@ class updateInf():
 			titleName  = titleName[:titleName.find('\x00')]
 			titleInfo  = updateEntry[0xA0:0xE0]
 			titleInfo  = titleInfo[:titleInfo.find('\x00')]
-			out += '[%04i] [0x%02x] [%40s] [%20s]\n' % (x, titleType, titleFile, titleName)
+			out += 'Update type : 0x%x\n' % titleType
+			out += 'Update flag : %i (0 means critical, 1 means need reboot)\n' % titleAttr
+			out += 'Update file : %s\n' % titleFile
+			out += 'Update ID   : %lu\n' % titleID
+			out += 'Update version : %i.%i\n' % (titleMajor, titleMinor)
+			out += 'Update name : %s\n' % titleName
+			out += 'Update info : %s\n' % titleInfo
+			out += '\n'
 			
 		return out
 			
