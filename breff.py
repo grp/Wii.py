@@ -118,8 +118,152 @@ class BREFF(object):
 
 		print "\n%08x\n" % pos
 
-		for x in xrange(string_cnt):
-			pass
+#		for x in xrange(string_cnt):
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown01: %08x" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown02: %08x" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown03: %08x" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown04: %08x" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown05: %08x" % unknown
+		unknown = Struct.float(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown06: %f" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown07: %08x" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown08: %08x" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown09: %08x" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown10: %08x" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown11: %08x" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown12: %08x" % unknown
+		unknown = Struct.float(data[pos:pos+4], endian='>')
+		pos += 4
+		print "PI TIMES 2 BITCHES: %.20f" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown14: %08x" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown15: %08x" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown16: %08x" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown17: %08x" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown18: %08x" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown19: %08x" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown20: %08x" % unknown
+		unknown = Struct.float(data[pos:pos+4], endian='>')
+		pos += 4
+		print "PI DIVIDED BY 4 BITCHES: %.20f" % unknown
+		unknown = Struct.float(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown22: %f" % unknown
+		unknown = Struct.float(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown23: %f" % unknown
+		unknown = Struct.float(data[pos:pos+4], endian='>')
+		pos += 4
+		print "PI BITCHES: %.20f" % unknown
+		unknown = Struct.float(data[pos:pos+4], endian='>')
+		pos += 4
+		print "PI DIVIDED BY 2 BITCHES: %.20f" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown26: %08x" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown27: %08x" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown28: %08x" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown29: %08x" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown30: %08x" % unknown
+		unknown = Struct.float(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown31: %f" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown32: %08x" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown33: %08x" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown34: %08x" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown35: %08x" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown36: %08x" % unknown
+		unknown = Struct.float(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown37: %f" % unknown
+		unknown = Struct.float(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown38: %f" % unknown
+		unknown = Struct.float(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown39: %f" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown40: %08x" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown41: %08x" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown42: %08x" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown43: %08x" % unknown
+		unknown = Struct.float(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown44: %.20f" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown45: %08x" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown46: %08x" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown47: %08x" % unknown
+		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Unknown48: %08x" % unknown
+			#pass
 
 		#''' BEGIN TEST DATA  
 		unknown = Struct.uint32(data[pos:pos+4], endian='>')
