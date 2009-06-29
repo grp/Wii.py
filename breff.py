@@ -12,6 +12,108 @@ def nullterm(str_plus):
 		return str_plus
 
 class BREFF(object):
+	class BREFF_REFF_Section2(Struct):
+		__endian__ = Struct.BE
+		def __format__(self):
+			self.unknown01 = Struct.uint32
+			self.unknown02 = Struct.uint32
+			self.unknown03 = Struct.uint32
+			self.unknown04 = Struct.uint32
+			self.unknown05 = Struct.uint32
+			self.unknown06 = Struct.float
+			self.unknown07 = Struct.uint32
+			self.unknown08 = Struct.uint32
+			self.unknown09 = Struct.uint32
+			self.unknown10 = Struct.float
+			self.unknown11 = Struct.float
+			self.unknown12 = Struct.uint32
+			self.unknown13 = Struct.float
+			self.unknown14 = Struct.uint32
+			self.unknown15 = Struct.uint32
+			self.unknown16 = Struct.uint32
+			self.unknown17 = Struct.float
+			self.unknown18 = Struct.uint32
+			self.unknown19 = Struct.uint32
+			self.unknown20 = Struct.uint32
+			self.unknown21 = Struct.float
+			self.unknown22 = Struct.float
+			self.unknown23 = Struct.float
+			self.unknown24 = Struct.float
+			self.unknown25 = Struct.float
+			self.unknown26 = Struct.uint32
+			self.unknown27 = Struct.uint32
+			self.unknown28 = Struct.uint32
+			self.unknown29 = Struct.uint32
+			self.unknown30 = Struct.uint32
+			self.unknown31 = Struct.float
+			self.unknown32 = Struct.uint32
+			self.unknown33 = Struct.uint32
+			self.unknown34 = Struct.uint32
+			self.unknown35 = Struct.uint32
+			self.unknown36 = Struct.uint32
+			self.unknown37 = Struct.float
+			self.unknown38 = Struct.float
+			self.unknown39 = Struct.float
+			self.unknown40 = Struct.float
+			self.unknown41 = Struct.float
+			self.unknown42 = Struct.uint32
+			self.unknown43 = Struct.uint32
+			self.unknown44 = Struct.float
+			self.unknown45 = Struct.uint32
+			self.unknown46 = Struct.uint32
+			self.unknown47 = Struct.uint32
+			self.unknown48 = Struct.uint32
+		def __str__(self):
+			return_string  = "Unknown01: %08x\n" % self.unknown01
+			return_string += "Unknown02: %08x\n" % self.unknown02
+			return_string += "Unknown03: %08x\n" % self.unknown03
+			return_string += "Unknown04: %08x\n" % self.unknown04
+			return_string += "Unknown05: %08x\n" % self.unknown05
+			return_string += "Unknown06: %.9f\n" % self.unknown06
+			return_string += "Unknown07: %08x\n" % self.unknown07
+			return_string += "Unknown08: %08x\n" % self.unknown08
+			return_string += "Unknown09: %08x\n" % self.unknown09
+			return_string += "Unknown10: %.9f\n" % self.unknown10
+			return_string += "Unknown11: %.9f\n" % self.unknown11
+			return_string += "Unknown12: %08x\n" % self.unknown12
+			return_string += "Unknown13: %.9f\n" % self.unknown13
+			return_string += "Unknown14: %08x\n" % self.unknown14
+			return_string += "Unknown15: %08x\n" % self.unknown15
+			return_string += "Unknown16: %08x\n" % self.unknown16
+			return_string += "Unknown17: %.9f\n" % self.unknown17
+			return_string += "Unknown18: %08x\n" % self.unknown18
+			return_string += "Unknown19: %08x\n" % self.unknown19
+			return_string += "Unknown20: %08x\n" % self.unknown20
+			return_string += "Unknown21: %.9f\n" % self.unknown21
+			return_string += "Unknown22: %08x\n" % self.unknown22
+			return_string += "Unknown23: %08x\n" % self.unknown23
+			return_string += "Unknown24: %.9f\n" % self.unknown24
+			return_string += "Unknown25: %.9f\n" % self.unknown25
+			return_string += "Unknown26: %08x\n" % self.unknown26
+			return_string += "Unknown27: %08x\n" % self.unknown27
+			return_string += "Unknown28: %08x\n" % self.unknown28
+			return_string += "Unknown29: %08x\n" % self.unknown29
+			return_string += "Unknown30: %08x\n" % self.unknown30
+			return_string += "Unknown31: %.9f\n" % self.unknown31
+			return_string += "Unknown32: %08x\n" % self.unknown32
+			return_string += "Unknown33: %08x\n" % self.unknown33
+			return_string += "Unknown34: %08x\n" % self.unknown34
+			return_string += "Unknown35: %08x\n" % self.unknown35
+			return_string += "Unknown36: %08x\n" % self.unknown36
+			return_string += "Unknown37: %.9f\n" % self.unknown37
+			return_string += "Unknown38: %.9f\n" % self.unknown38
+			return_string += "Unknown39: %.9f\n" % self.unknown39
+			return_string += "Unknown40: %.9f\n" % self.unknown40
+			return_string += "Unknown41: %.9f\n" % self.unknown41
+			return_string += "Unknown42: %08x\n" % self.unknown42
+			return_string += "Unknown43: %08x\n" % self.unknown43
+			return_string += "Unknown44: %.9f\n" % self.unknown44
+			return_string += "Unknown45: %08x\n" % self.unknown45
+			return_string += "Unknown46: %08x\n" % self.unknown46
+			return_string += "Unknown47: %08x\n" % self.unknown47
+			return_string += "Unknown48: %08x\n" % self.unknown48
+			return return_string
+
 	class BREFF_REFF_StringSection1(Struct):
 		__endian__ = Struct.BE
 		def __format__(self):
@@ -100,6 +202,7 @@ class BREFF(object):
 
 		print "\n%08x\n" % pos
 
+		string_groups = []
 		for x in xrange(string_cnt):
 			str_length = Struct.uint16(data[pos:pos+2], endian='>')
 			pos += 2
@@ -111,6 +214,7 @@ class BREFF(object):
 			string_section1.unpack(data[pos:pos+len(string_section1)])
 			pos += len(string_section1)
 			print string_section1
+			string_groups.append(string_section1)
 
 		print "\n%08x\n" % pos
 
@@ -121,7 +225,15 @@ class BREFF(object):
 
 		print "\n%08x\n" % pos
 
-#		for x in xrange(string_cnt):
+		assert pos == string_groups[0].offset + 0x34
+		for x in xrange(string_cnt):
+			pos = 0x34 + string_groups[x].offset
+			reff_section2 = self.BREFF_REFF_Section2()
+			reff_section2.unpack(data[pos:pos+len(reff_section2)])
+			pos += len(reff_section2)
+			print reff_section2
+
+		''' LARGE TEST DATA
 		unknown = Struct.uint32(data[pos:pos+4], endian='>')
 		pos += 4
 		print "Unknown01: %08x" % unknown
@@ -266,7 +378,7 @@ class BREFF(object):
 		unknown = Struct.uint32(data[pos:pos+4], endian='>')
 		pos += 4
 		print "Unknown48: %08x" % unknown
-			#pass
+		LARGE TEST DATA '''
 
 		#''' BEGIN TEST DATA  
 		unknown = Struct.uint32(data[pos:pos+4], endian='>')
