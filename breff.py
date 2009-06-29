@@ -29,7 +29,10 @@ class BREFF(object):
 			self.length = Struct.uint32
 			self.chunk_cnt = Struct.uint32
 		def __str__(self):
-			return "Magic: %s\nLength: %08x\nChunk Count: %08x\n" % (self.magic , self.length , self.chunk_cnt)
+			return_string  = "Magic: %s\n" % self.magic
+			return_string += "Length: %08x\n" % self.length
+			return_string += "Chunk Count: %08x\n" % self.chunk_cnt
+			return return_string
 
 	class BREFF_Header(Struct):
 		__endian__ = Struct.BE
