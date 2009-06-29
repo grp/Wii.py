@@ -17,8 +17,10 @@ class BREFF(object):
 		def __format__(self):
 			self.unknown01 = Struct.uint32
 			self.unknown02 = Struct.uint32
-			self.unknown03 = Struct.uint32
-			self.unknown04 = Struct.uint32
+			self.unk03p1 = Struct.uint16
+			self.unk03p2 = Struct.uint16
+			self.unk04p1 = Struct.int16
+			self.unk04p2 = Struct.uint16
 			self.unknown05 = Struct.uint32
 			self.unknown06 = Struct.float
 			self.unknown07 = Struct.uint32
@@ -30,11 +32,12 @@ class BREFF(object):
 			self.unknown13 = Struct.float
 			self.unknown14 = Struct.uint32
 			self.unknown15 = Struct.uint32
-			self.unknown16 = Struct.uint32
+			self.unk16p1 = Struct.uint16
+			self.unk16p2 = Struct.uint16
 			self.unknown17 = Struct.float
-			self.unknown18 = Struct.uint32
+			self.unknown18 = Struct.float
 			self.unknown19 = Struct.uint32
-			self.unknown20 = Struct.uint32
+			self.unknown20 = Struct.float
 			self.unknown21 = Struct.float
 			self.unknown22 = Struct.float
 			self.unknown23 = Struct.float
@@ -64,10 +67,10 @@ class BREFF(object):
 			self.unknown47 = Struct.uint32
 			self.unknown48 = Struct.uint32
 		def __str__(self):
-			return_string  = "Unknown01: %08x\n" % self.unknown01
-			return_string += "Unknown02: %08x\n" % self.unknown02
-			return_string += "Unknown03: %08x\n" % self.unknown03
-			return_string += "Unknown04: %08x\n" % self.unknown04
+			return_string  = "Unknown01: %08x\talways 00000128 ?\n" % self.unknown01
+			return_string += "Unknown02: %08x\talways 80000xxx ?\n" % self.unknown02
+			return_string += "Unknown03: %04x\t%04x\n" % (self.unk03p1 , self.unk03p2)
+			return_string += "Unknown04: %.2d\t%04x\n" % (self.unk04p1 , self.unk04p2)
 			return_string += "Unknown05: %08x\n" % self.unknown05
 			return_string += "Unknown06: %.9f\n" % self.unknown06
 			return_string += "Unknown07: %08x\n" % self.unknown07
@@ -79,15 +82,15 @@ class BREFF(object):
 			return_string += "Unknown13: %.9f\n" % self.unknown13
 			return_string += "Unknown14: %08x\n" % self.unknown14
 			return_string += "Unknown15: %08x\n" % self.unknown15
-			return_string += "Unknown16: %08x\n" % self.unknown16
+			return_string += "Unknown16: %04x\t%04x\n" % (self.unk16p1, self.unk16p2)
 			return_string += "Unknown17: %.9f\n" % self.unknown17
-			return_string += "Unknown18: %08x\n" % self.unknown18
+			return_string += "Unknown18: %.9f\n" % self.unknown18
 			return_string += "Unknown19: %08x\n" % self.unknown19
-			return_string += "Unknown20: %08x\n" % self.unknown20
+			return_string += "Unknown20: %.9f\n" % self.unknown20
 			return_string += "Unknown21: %.9f\n" % self.unknown21
 			return_string += "Unknown22: %08x\n" % self.unknown22
 			return_string += "Unknown23: %08x\n" % self.unknown23
-			return_string += "Unknown24: %.9f\n" % self.unknown24
+			return_string += "Unknown24: %.20f\n" % self.unknown24
 			return_string += "Unknown25: %.9f\n" % self.unknown25
 			return_string += "Unknown26: %08x\n" % self.unknown26
 			return_string += "Unknown27: %08x\n" % self.unknown27
