@@ -44,7 +44,7 @@ class ZND(object):
 
 def main():
 	if len(sys.argv) == 1:
-		print 'Usage: python bmg.py'
+		print 'Usage: python znd.py <filename>'
 		sys.exit(1)
 	f = open(sys.argv[1], 'rb')
 	if f:
