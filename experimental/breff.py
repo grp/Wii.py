@@ -255,6 +255,36 @@ class BREFF(object):
 			return_string += "Length: %08x\n" % self.length
 			return return_string
 
+	class BREFF_REFF_StringHeader(Struct):
+		__endian__ = Struct.BE
+		def __format__(self):
+			self.offset = Struct.uint16
+			self.length = Struct.uint16
+			self.string_cnt = Struct.uint16
+			self.unknown01 = Struct.uint16
+		def __str__(self):
+			return_string  = "Offset: %04x\n" % self.offset
+			return_string += "Offset: %04x\n" % self.length
+			return_string += "String Count: %04x\n" % self.string_cnt
+			return_string += "Unknown01: %04x" % self.unknown01
+			return return_string
+
+	class BREFF_REFF_Project(Struct):
+		__endian__ = Struct.BE
+		def __format__(self):
+			self.length = Struct.uint32
+			self.unknown01 = Struct.uint32
+			self.unknown02 = Struct.uint32
+			self.str_length = Struct.uint16
+			self.unknown03 = Struct.uint16
+		def __str__(self):
+			return_string  = "Length: %08x\n" % self.length
+			return_string += "Unknown01: %08x\n" % self.unknown01
+			return_string += "Unknown02: %08x\n" % self.unknown02
+			return_string += "Number of Strings: %04x\n" % self.str_length
+			return_string += "Unknown: %04x" % self.unknown03
+			return return_string
+
 	class BREFF_REFF(Struct):
 		__endian__ = Struct.BE
 		def __format__(self):
@@ -300,27 +330,15 @@ class BREFF(object):
 		print reff
 		assert reff.magic == "REFF"
 		
-		temp = pos
-		project = Struct.uint32(data[pos:pos+4], endian='>')
-		pos += 4
-		print "Header Size: %08x" % project
-		unknown = Struct.uint32(data[pos:pos+4], endian='>')
-		pos += 4
-		print "Unknown: %08x" % unknown
-		unknown = Struct.uint32(data[pos:pos+4], endian='>')
-		pos += 4
-		print "Unknown: %08x" % unknown
-		str_length = Struct.uint16(data[pos:pos+2], endian='>')
-		pos += 2
-		print "String Length with null added: %04x" % str_length
-		unknown = Struct.uint16(data[pos:pos+2], endian='>')
-		pos += 2
-		print "Unknown: %04x" % unknown
-		string = data[pos:pos+str_length-1]
-		pos += str_length 
+		reff_project = self.BREFF_REFF_Project()
+		reff_project.unpack(data[pos:pos+len(reff_project)])
+		pos += len(reft_project)
+		print reff_project
+		string = nullterm(data[pos:pos+reff_project.str_length])
+		pos += reff_project.str_length
 		print "String: %s\n" % string
 
-		while pos % 2:
+		while pos %2:
 			unknown = Struct.uint8(data[pos:pos+1])
 			pos += 1
 			print "Padding: %02x" % unknown
@@ -328,26 +346,15 @@ class BREFF(object):
 		print "\n%08x\n" % pos
 		temp = pos
 
-		unknown = Struct.uint16(data[pos:pos+2], endian='>')
-		pos += 2
-		print "Offset: %04x" % unknown
-		unknown = Struct.uint16(data[pos:pos+2], endian='>')
-		pos += 2
-		print "Length: %04x" % unknown
-
-		print "\n%08x\n" % pos
-
-		string_cnt = Struct.uint16(data[pos:pos+2], endian='>')
-		pos += 2
-		print "String Count: %04x" % string_cnt
-		unknown = Struct.uint16(data[pos:pos+2], endian='>')
-		pos += 2
-		print "Unknown: %04x" % unknown
+		reff_string_header = self.BREFF_REFF_StringHeader()
+		reff_string_header.unpack(data[pos:pos+len(reff_string_header)])
+		pos += len(reff_string_header)
+		print reff_string_header
 
 		print "\n%08x\n" % pos
 
 		string_groups = []
-		for x in xrange(string_cnt):
+		for x in xrange(reff_string_header.string_cnt):
 			str_length = Struct.uint16(data[pos:pos+2], endian='>')
 			pos += 2
 			print "String Length with null added: %04x" % str_length
@@ -370,7 +377,7 @@ class BREFF(object):
 		print "\n%08x\n" % pos
 
 		assert pos == string_groups[0].offset + temp
-		for x in xrange(string_cnt):
+		for x in xrange(reff_string_header.string_cnt):
 			pos = temp + string_groups[x].offset
 			reff_section2 = self.BREFF_REFF_Section2()
 			reff_section2.unpack(data[pos:pos+len(reff_section2)])
