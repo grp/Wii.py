@@ -98,13 +98,12 @@ class WOD: #WiiOpticalDisc
 		blockStart = offset / 0x7C00
 		blockLen = (align(size, 0x7C00)) / 0x7C00
 		
-		for x in range(blockStart, blockLen):
+		for x in range(blockStart, blockStart + blockLen):
 			try:
 				self.markedBlocks.index(blockStart + x)
-			except:
+			except:	
 				self.markedBlocks.append(blockStart + x)
 				
-		#print '%s (%i blocks marked)' % (self.markedBlocks, len(self.markedBlocks))
 	def decryptBlock(self, block):
 		if len(block) != 0x8000:
 			raise Exception('Block size too big/small')	
@@ -114,6 +113,10 @@ class WOD: #WiiOpticalDisc
 		blockData = block[0x0400:0x8000]
 		
 		return Crypto().decryptData(self.partitionKey, blockIV, blockData, True)
+		
+	def readBlock(self, blockNumber):
+		self.fp.seek(self.partitionOffset + 0x20000 + (0x8000 * blockNumber))
+		return self.decryptBlock(self.fp.read(0x8000))
 		
 	def readPartition(self, offset, size):
 		
@@ -135,7 +138,7 @@ class WOD: #WiiOpticalDisc
 		return blob[offset:offset + size]
 		
 	def readUnencrypted(self, offset, size):
-		if offset > 0x20000:
+		if offset + size > 0x20000:
 			raise Exception('This read is on encrypted data')
 			
 		# FIXMII : Needs testing, extracting the tmd cause to have 10 null bytes in the end instead of 10 useful bytes at start :|
@@ -262,7 +265,7 @@ class WOD: #WiiOpticalDisc
 		self.appLdr = self.Apploader().unpack(self.readPartition (0x2440, 32))
 		self.partitionHdr = self.discHeader().unpack(self.readPartition (0x0, 0x400))
 		
-		self.partitionIos = TMD(self.getPartitionTmd()).getIOSVersion() & 0x00ffffff
+		self.partitionIos = TMD(self.getPartitionTmd()).getIOSVersion() & 0x0fffffff
 
 	def getFst(self):
 		fstBuf = self.readPartition(self.fstOffset, self.fstSize)
@@ -307,6 +310,18 @@ class WOD: #WiiOpticalDisc
 		
 	def getPartitionMainDol(self):
 		return self.readPartition (self.dolOffset, self.dolSize)
+		
+	def dumpPartition(self, fn):
+		rawPartition = open(fn, 'w+b')
+		
+		print 'Partition useful data %i Mb' % (align(len(self.markedBlocks) * 0x7C00, 1024) / 1024 / 1024)
+		
+		self.fp.seek(self.partitionOffset)
+		rawPartition.write(self.fp.read(0x2A4)) # Write teh TIK
+		rawPartition.write(self.readUnencrypted(0, 0x20000 - 0x2A4)) # Write the TMD and other stuff
+		
+		for x in range(len(self.markedBlocks)):
+			rawPartition.write(self.readBlock(self.markedBlocks[x])) # Write each decrypted block
 
 class updateInf():
 	def __init__(self, f):
@@ -314,20 +329,34 @@ class updateInf():
 	def __str__(self):
 		out = ''
 		
-		self.buildDate = self.buffer[:0xa]
-		self.fileCount = struct.unpack('I', self.buffer[0x13:0x13 + 4])[0]
+		self.buildDate = self.buffer[:0x10]
+		self.fileCount = struct.unpack('>L', self.buffer[0x10:0x14])[0]
 		
 		out += 'This update partition was built on %s and has %i files\n\n' % (self.buildDate, self.fileCount)
-		out += '[File] [Type] [File name %30s] [Title description   ]\n\n' % ''	
 		
 		for x in range(self.fileCount):
-			updateEntry = self.buffer[0x2f + x * 0x200:0x2f + (x + 1) * 0x200]
-			titleType = ord(updateEntry[0])
-			titleFile = updateEntry[0x1:0x1 + 0x50]
-			titleFile = titleFile[:titleFile.find('\x00')]
-			titleName = updateEntry[0x1 + 0x50:0x1 + 0x50 + 0x40]
-			titleName = titleName[:titleName.find('\x00')]
-			out += '[%04i] [0x%02x] [%40s] [%20s]\n' % (x, titleType, titleFile, titleName)
+			updateEntry = self.buffer[0x20 + x * 0x200:0x20 + (x + 1) * 0x200]
+			titleType  = struct.unpack('>L', updateEntry[:0x4])[0]
+			titleAttr  = struct.unpack('>L', updateEntry[0x4:0x8])[0]
+			titleUnk1  = struct.unpack('>L', updateEntry[0x8:0xC])[0]
+			titleType2 = struct.unpack('>L', updateEntry[0xC:0x10])[0]
+			titleFile  = updateEntry[0x10:0x50]
+			titleFile  = titleFile[:titleFile.find('\x00')]
+			titleID    = struct.unpack('>Q', updateEntry[0x50:0x58])[0]
+			titleMajor = struct.unpack('>B', updateEntry[0x58:0x59])[0]
+			titleMinor = struct.unpack('>B', updateEntry[0x59:0x5A])[0]
+			titleName  = updateEntry[0x60:0xA0]
+			titleName  = titleName[:titleName.find('\x00')]
+			titleInfo  = updateEntry[0xA0:0xE0]
+			titleInfo  = titleInfo[:titleInfo.find('\x00')]
+			out += 'Update type : 0x%x\n' % titleType
+			out += 'Update flag : %i (0 means critical, 1 means need reboot)\n' % titleAttr
+			out += 'Update file : %s\n' % titleFile
+			out += 'Update ID   : %lu\n' % titleID
+			out += 'Update version : %i.%i\n' % (titleMajor, titleMinor)
+			out += 'Update name : %s\n' % titleName
+			out += 'Update info : %s\n' % titleInfo
+			out += '\n'
 			
 		return out
 			
