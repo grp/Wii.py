@@ -15,6 +15,7 @@ class BREFF(object):
 	class BREFF_REFF_Section2(Struct):
 		__endian__ = Struct.BE
 		def __format__(self):
+			self.unknown00 = Struct.uint32
 			self.unknown01 = Struct.uint32
 			self.unknown02 = Struct.uint32
 			self.unk03p1 = Struct.uint16
@@ -129,9 +130,9 @@ class BREFF(object):
 			self.unknownA9 = Struct.uint32
 			self.unknownB0 = Struct.uint32
 			self.unknownB1 = Struct.uint32
-			self.unknownB2 = Struct.uint32
 		def __str__(self):
-			return_string  = "Unknown01: %08x\talways 00000128 ?\n" % self.unknown01
+			return_string  = "Unknown00: %08x\n" % self.unknown00
+			return_string += "Unknown01: %08x\talways 00000128 ?\n" % self.unknown01
 			return_string += "Unknown02: %08x\talways 80000xxx ?\n" % self.unknown02
 			return_string += "Unknown03: %04x\t%04x\n" % (self.unk03p1 , self.unk03p2)
 			return_string += "Unknown04: %.2d\t%04x\n" % (self.unk04p1 , self.unk04p2)
@@ -242,7 +243,6 @@ class BREFF(object):
 			return_string += "UnknownA9: %08x\n" % self.unknownA9
 			return_string += "UnknownB0: %08x\n" % self.unknownB0
 			return_string += "UnknownB1: %08x\n" % self.unknownB1
-			return_string += "UnknownB2: %08x\n" % self.unknownB2
 			return return_string
 
 	class BREFF_REFF_StringSection1(Struct):
