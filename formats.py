@@ -1,8 +1,5 @@
-import os, struct, subprocess, fnmatch, shutil, urllib, array
 from binascii import *
-
-from Struct import Struct
-from struct import *
+import struct
 
 from common import *
 from title import *
@@ -12,7 +9,7 @@ class locDat:
 		def __format__(self):
 			self.magic = Struct.string(4)
 			self.md5 = Struct.string(16)
-		
+
 	def __init__(self, f):
 		self.sdKey = '\xab\x01\xb9\xd8\xe1\x62\x2b\x08\xaf\xba\xd8\x4d\xbf\xc2\xa5\x5d'
 		self.sdIv = '\x21\x67\x12\xe6\xaa\x1f\x68\x9f\x95\xc5\xa2\x23\x24\xdc\x6a\x98'
@@ -335,7 +332,7 @@ class netConfig:
 	def getNotBlank(self, config):
 		fp = open(self.f, "rb")
 		fp.seek(8 + (0x91C * config))
-		sel = unpack(">B", fp.read(1))[0]
+		sel = struct.unpack(">B", fp.read(1))[0]
 		fp.close()
 		if(sel & 0x20):
 			return 1
@@ -347,7 +344,7 @@ class netConfig:
 			return None
 		fp = open(self.f, "rb")
 		fp.seek(8 + (0x91C * config))
-		sel = unpack(">B", fp.read(1))[0]
+		sel = struct.unpack(">B", fp.read(1))[0]
 		if(sel & 0x04):
 			return 0
 		else:
@@ -360,7 +357,7 @@ class netConfig:
 			return None
 		fp = open(self.f, "rb")
 		fp.seek(8 + (0x91C * config))
-		sel = unpack(">B", fp.read(1))[0]
+		sel = struct.unpack(">B", fp.read(1))[0]
 		if(sel & 0x02):
 			return 0
 		else:
@@ -372,7 +369,7 @@ class netConfig:
 			return None
 		fp = open(self.f, "rb")
 		fp.seek(8 + (0x91C * config) + 2021)
-		len = unpack(">B", fp.read(1))[0]
+		len = struct.unpack(">B", fp.read(1))[0]
 		fp.seek(8 + (0x91C * config) + 1988)
 		ssid = fp.read(len)
 		fp.close()
@@ -383,7 +380,7 @@ class netConfig:
 			return None
 		fp = open(self.f, "rb")
 		fp.seek(8 + (0x91C * config) + 2025)
-		crypt = unpack(">B", fp.read(1))[0]
+		crypt = struct.unpack(">B", fp.read(1))[0]
 		type = ""
 		if(crypt == 0):
 			type = "OPEN"
@@ -407,7 +404,7 @@ class netConfig:
 			return None
 		fp = open(self.f, "rb")
 		fp.seek(8 + (0x91C * config) + 2025)
-		crypt = unpack(">B", fp.read(1))[0]
+		crypt = struct.unpack(">B", fp.read(1))[0]
 		type = ""
 		if(crypt == 0):
 			type = "OPEN"
@@ -425,7 +422,7 @@ class netConfig:
 			return None
 		if(crypt != "\x00"):
 			fp.seek(8 + (0x91C * config) + 2029)
-			keylen = unpack(">B", fp.read(1))[0]
+			keylen = struct.unpack(">B", fp.read(1))[0]
 			fp.seek(8 + (0x91C * config) + 2032)
 			key = fp.read(keylen)
 			fp.close()
@@ -436,44 +433,44 @@ class netConfig:
 	def clearConfig(self, config):
 		fp = open(self.f, "rb+")
 		fp.seek(8 + (0x91C * config))
-		sel = unpack(">B", fp.read(1))[0]
+		sel = struct.unpack(">B", fp.read(1))[0]
 		sel &= 0xDF
 		fp.seek(8 + (0x91C * config))
-		fp.write(pack(">B", sel))
+		fp.write(struct.pack(">B", sel))
 		fp.close()
 
 	def setNotBlank(self, config):
 		fp = open(self.f, "rb+")
 		fp.seek(8 + (0x91C * config))
-		sel = unpack(">B", fp.read(1))[0]
+		sel = struct.unpack(">B", fp.read(1))[0]
 		sel |= 0x20
 		fp.seek(8 + (0x91C * config))
-		fp.write(pack(">B", sel))
+		fp.write(struct.pack(">B", sel))
 		fp.close()
 
 	def setIPType(self, config, static):
 		fp = open(self.f, "rb+")
 		fp.seek(8 + (0x91C * config))
-		sel = unpack(">B", fp.read(1))[0]
+		sel = struct.unpack(">B", fp.read(1))[0]
 		if(not static):
 			sel |= 0x04
 		else:
 			sel &= 0xFB
 		fp.seek(8 + (0x91C * config))
-		fp.write(pack(">B", sel))
+		fp.write(struct.pack(">B", sel))
 		fp.close()
 		self.setNotBlank(config)
 
 	def setWireType(self, config, wired):
 		fp = open(self.f, "rb+")
 		fp.seek(8 + (0x91C * config))
-		sel = unpack(">B", fp.read(1))[0]
+		sel = struct.unpack(">B", fp.read(1))[0]
 		if(not wired):
 			sel |= 0x02
 		else:
 			sel &= 0xFD
 		fp.seek(8 + (0x91C * config))
-		fp.write(pack(">B", sel))
+		fp.write(struct.pack(">B", sel))
 		fp.close()
 		self.setNotBlank(config)
 
@@ -514,29 +511,29 @@ class netConfig:
 	def selectConfig(self, config):
 		fp = open(self.f, "rb+")
 		fp.seek(8 + (0x91C * 0))
-		sel = unpack(">B", fp.read(1))[0]
+		sel = struct.unpack(">B", fp.read(1))[0]
 		if(config == 0):
 			sel |= 0x80
 		else:
 			sel &= 0x7F
 		fp.seek(8 + (0x91C * 0))
-		fp.write(pack(">B", sel))
+		fp.write(struct.pack(">B", sel))
 		fp.seek(8 + (0x91C * 1))
-		sel = unpack(">B", fp.read(1))[0]
+		sel = struct.unpack(">B", fp.read(1))[0]
 		if(config == 1):
 			sel |= 0x80
 		else:
 			sel &= 0x7F
 		fp.seek(8 + (0x91C * 1))
-		fp.write(pack(">B", sel))
+		fp.write(struct.pack(">B", sel))
 		fp.seek(8 + (0x91C * 2))
-		sel = unpack(">B", fp.read(1))[0]
+		sel = struct.unpack(">B", fp.read(1))[0]
 		if(config == 2):
 			sel |= 0x80
 		else:
 			sel &= 0x7F
 		fp.seek(8 + (0x91C * 2))
-		fp.write(pack(">B", sel))
+		fp.write(struct.pack(">B", sel))
 		self.setNotBlank(config)
 		fp.close()
 
@@ -710,8 +707,8 @@ class uidsys:
 			if(hexdump(uidstr.titleid, "") == ("%016X" % title)):
 				uidfp.close()
 				return uidstr.uid
-			if(unpack(">H", uidstr.uid) >= unpack(">H", enduid)):
-				enduid = a2b_hex("%04X" % (unpack(">H", uidstr.uid)[0] + 1))
+			if(struct.unpack(">H", uidstr.uid) >= struct.unpack(">H", enduid)):
+				enduid = a2b_hex("%04X" % (struct.unpack(">H", uidstr.uid)[0] + 1))
 			uidict[uidstr.titleid] = uidstr.uid
 		uidict[a2b_hex("%016X" % title)] = enduid
 		uidfp.close()

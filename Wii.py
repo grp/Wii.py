@@ -1,14 +1,21 @@
 __all__ = []
- 
-from compression import *
-from savedata import *
-from banner import *
-from disc import *
-from nand import *
+
+from common import *
 from formats import *
+from banner import *
 from title import *
-from TPL import *
-from U8 import *
+from disc import *
+from image import *
+from archive import *
+from export import *
+from compression import *
+from nand import *
 
 if (__name__ == "__main__"):
-	print ("\nAll components loaded sucessfully!\n\n")
+	Crypto()
+	TMD()
+	Ticket()
+	
+	#insert non-dependant check code here
+	
+	print ("\nAll Wii.py components loaded sucessfully!\n")

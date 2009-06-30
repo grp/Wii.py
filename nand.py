@@ -1,13 +1,9 @@
-import os, struct, subprocess, fnmatch, shutil, urllib, array
 from binascii import *
-
-from Struct import Struct
 from struct import *
 
 from common import *
 from title import *
 from formats import *
-
 
 class NAND:
 	"""This class performs all NAND related things. It includes functions to copy a title (given the TMD) into the correct structure as the Wii does, and has an entire ES-like system. Parameter f to the initializer is the folder that will be used as the NAND root."""

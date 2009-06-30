@@ -1,11 +1,6 @@
-import os, struct, subprocess, fnmatch, shutil, urllib, array
-
-from Struct import Struct
-
 from common import *
-from title import *	
-from TPL import *
-from PIL import Image
+from title import *
+from image import *
 
 class Savegame():
 	class savegameHeader(Struct):
@@ -256,5 +251,3 @@ class Savegame():
 			
 	def getFilesCount(self):
 		return self.bkHdr.filesCount
-	
-	

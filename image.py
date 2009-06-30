@@ -1,8 +1,3 @@
-import os, struct, subprocess, fnmatch, shutil, urllib, array
-from PIL import Image
-
-from Struct import Struct
-
 from common import *
 
 def flatten(myTuple):
@@ -37,9 +32,9 @@ def avg(w0, w1, c0, c1):
 class TPL():
 	"""This is the class to generate TPL texutres from PNG images, and to convert TPL textures to PNG images. The parameter file specifies the filename of the source, either a PNG image or a TPL image.
 	
-	Currently supported are the following formats to convert from TPL: RGBA8, RGB565, I4, IA4, I8, IA8, CI4, CI8, CMP, CI14X2. Currently not working is RBG5A3. RBG5A3 is having alpha issues, i'm working on it.
+	Currently supported are the following formats to convert from TPL (all formats): RGBA8, RGB565, RGB5A3, I4, IA4, I8, IA8, CI4, CI8, CMP, CI14X2.
 	
-	Currently support to convert to TPL: I4, I8, IA4, IA8, RBG565, RBGA8. Currently not working/done are CI4, CI8, CMP, CI14X2, and RBG5A3. RBG5A3 is having alpha issues."""
+	Currently supported to convert to TPL: I4, I8, IA4, IA8, RBG565, RBGA8, RGB5A3. Currently not supported are CI4, CI8, CMP, CI14X2."""
 	
 	
 	class TPLHeader(Struct):
@@ -513,22 +508,21 @@ class TPL():
 		
 		Again, only a single texture is supported."""
 		import wx
-		class imp(wx.Panel):
-			def __init__(self, parent, id, im):
-				wx.Panel.__init__(self, parent, id)
+		class imp(wx.Dialog):
+			def __init__(self, title, im):
 				w = img.GetWidth()
 				h = img.GetHeight()
-				wx.StaticBitmap(self, -1, im, ( ((max(w, 300) - w) / 2), ((max(h, 200) - h) / 2) ), (w, h))
+				
+				wx.Dialog.__init__(self, None, -1, title, size = (max(w, 300), max(h, 200)))
 
+				wx.StaticBitmap(self, -1, im, ( ((max(w, 300) - w) / 2), ((max(h, 200) - h) / 2) ), (w, h))
 		self.toImage("tmp.png")
 		img = wx.Image("tmp.png", wx.BITMAP_TYPE_ANY).ConvertToBitmap()
 		w = img.GetWidth()
 		h = img.GetHeight()
-		app = wx.App(redirect = False)
-		frame = wx.Frame(None, -1, "TPL (" + str(w) + ", " + str(h) + ")", size = (max(w, 300), max(h, 200)))
-		image = imp(frame, -1, img)
-		frame.Show(True)
-		app.MainLoop()
+		dialog = imp("TPL (" + str(w) + ", " + str(h) + ")", img)
+		dialog.ShowModal()
+		dialog.Destroy()
 		os.unlink("tmp.png")
 	def RGBA8(self, (x, y), data):
 		out = [0 for i in range(x * y)]

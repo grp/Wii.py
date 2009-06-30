@@ -1,14 +1,14 @@
-import os, hashlib, struct, subprocess, fnmatch, shutil, urllib, array
+import os, hashlib, struct, subprocess, fnmatch, shutil, urllib, array, time, sys, tempfile
 
 from Crypto.Cipher import AES
+from PIL import Image
+
 from Struct import Struct
 
-
 def align(x, boundary):
-	if(x % boundary == 0):
-		return x
-	else:
-		return (x + boundary) - (x % boundary)
+	if(x % boundary):
+		x += (x + boundary) - (x % boundary)
+	return x
 
 def hexdump(s, sep=" "):
         return sep.join(map(lambda x: "%02x" % ord(x), s))

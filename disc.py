@@ -1,11 +1,5 @@
-import os, struct, subprocess, fnmatch, shutil, urllib, array
-
-import time
-from title import *
-from Struct import Struct
-
 from common import *
-
+from title import *
 
 class WOD: #WiiOpticalDisc
 	class discHeader(Struct):
