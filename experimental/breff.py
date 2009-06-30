@@ -15,6 +15,7 @@ class BREFF(object):
 	class BREFF_REFF_Section2(Struct):
 		__endian__ = Struct.BE
 		def __format__(self):
+			self.unknown00 = Struct.uint32
 			self.unknown01 = Struct.uint32
 			self.unknown02 = Struct.uint32
 			self.unk03p1 = Struct.uint16
@@ -23,7 +24,7 @@ class BREFF(object):
 			self.unk04p2 = Struct.uint16
 			self.unknown05 = Struct.uint32
 			self.unknown06 = Struct.float
-			self.unknown07 = Struct.uint32
+			self.unknown07 = Struct.float
 			self.unknown08 = Struct.uint32
 			self.unknown09 = Struct.uint32
 			self.unknown10 = Struct.float
@@ -98,19 +99,19 @@ class BREFF(object):
 			self.unknown78 = Struct.uint32
 			self.unknown79 = Struct.uint32
 			self.unknown80 = Struct.uint32
-			self.unknown81 = Struct.uint32
-			self.unknown82 = Struct.uint32
-			self.unknown83 = Struct.uint32
-			self.unknown84 = Struct.uint32
+			self.unknown81 = Struct.float
+			self.unknown82 = Struct.float
+			self.unknown83 = Struct.float
+			self.unknown84 = Struct.float
 			self.unknown85 = Struct.uint32
 			self.unknown86 = Struct.uint32
 			self.unknown87 = Struct.uint32
-			self.unknown88 = Struct.uint32
-			self.unknown89 = Struct.uint32
-			self.unknown90 = Struct.uint32
-			self.unknown91 = Struct.uint32
-			self.unknown92 = Struct.uint32
-			self.unknown93 = Struct.uint32
+			self.unknown88 = Struct.float
+			self.unknown89 = Struct.float
+			self.unknown90 = Struct.float
+			self.unknown91 = Struct.float
+			self.unknown92 = Struct.float
+			self.unknown93 = Struct.float
 			self.unknown94 = Struct.uint32
 			self.unknown95 = Struct.uint32
 			self.unknown96 = Struct.uint32
@@ -129,49 +130,49 @@ class BREFF(object):
 			self.unknownA9 = Struct.uint32
 			self.unknownB0 = Struct.uint32
 			self.unknownB1 = Struct.uint32
-			self.unknownB2 = Struct.uint32
 		def __str__(self):
-			return_string  = "Unknown01: %08x\talways 00000128 ?\n" % self.unknown01
+			return_string  = "Unknown00: %08x\n" % self.unknown00
+			return_string += "Unknown01: %08x\talways 00000128 ?\n" % self.unknown01
 			return_string += "Unknown02: %08x\talways 80000xxx ?\n" % self.unknown02
 			return_string += "Unknown03: %04x\t%04x\n" % (self.unk03p1 , self.unk03p2)
 			return_string += "Unknown04: %.2d\t%04x\n" % (self.unk04p1 , self.unk04p2)
 			return_string += "Unknown05: %08x\n" % self.unknown05
 			return_string += "Unknown06: %.9f\n" % self.unknown06
-			return_string += "Unknown07: %08x\n" % self.unknown07
+			return_string += "Unknown07: %f\n" % self.unknown07
 			return_string += "Unknown08: %08x\n" % self.unknown08
 			return_string += "Unknown09: %08x\n" % self.unknown09
-			return_string += "Unknown10: %.9f\n" % self.unknown10
-			return_string += "Unknown11: %.9f\n" % self.unknown11
-			return_string += "Unknown12: %08x\n" % self.unknown12
-			return_string += "Unknown13: %.9f\n" % self.unknown13
+			return_string += "Size Outer Radius X: %.9f\n" % self.unknown10
+			return_string += "Size Outer Radius Y: %.9f\n" % self.unknown11
+			return_string += "Size Outer Radius Z: %.9f\n" % self.unknown12
+			return_string += "Inner Radius: %.9f\n" % self.unknown13
 			return_string += "Unknown14: %08x\n" % self.unknown14
 			return_string += "Unknown15: %08x\n" % self.unknown15
 			return_string += "Unknown16: %04x\t%04x\n" % (self.unk16p1, self.unk16p2)
-			return_string += "Unknown17: %.9f\n" % self.unknown17
-			return_string += "Unknown18: %.9f\n" % self.unknown18
-			return_string += "Unknown19: %08x\n" % self.unknown19
-			return_string += "Unknown20: %.9f\n" % self.unknown20
+			return_string += "All Direction Speed: %.9f\n" % self.unknown17
+			return_string += "Y Axis Difuse Speed: %.9f\n" % self.unknown18
+			return_string += "Random Direction Speed: %.9f\n" % self.unknown19
+			return_string += "Normal Direction Speed: %.9f\n" % self.unknown20
 			return_string += "Unknown21: %.9f\n" % self.unknown21
-			return_string += "Unknown22: %08x\n" % self.unknown22
+			return_string += "Move to Specific Direction: %.9f\n" % self.unknown22
 			return_string += "Unknown23: %08x\n" % self.unknown23
 			return_string += "Unknown24: %.20f\n" % self.unknown24
 			return_string += "Unknown25: %.9f\n" % self.unknown25
 			return_string += "Unknown26: %08x\n" % self.unknown26
-			return_string += "Unknown27: %08x\n" % self.unknown27
-			return_string += "Unknown28: %08x\n" % self.unknown28
-			return_string += "Unknown29: %08x\n" % self.unknown29
+			return_string += "Unknown27: %.9f\n" % self.unknown27
+			return_string += "Unknown28: %.9f\n" % self.unknown28
+			return_string += "Unknown29: %.9f\n" % self.unknown29
 			return_string += "Unknown30: %08x\n" % self.unknown30
 			return_string += "Unknown31: %.9f\n" % self.unknown31
 			return_string += "Unknown32: %08x\n" % self.unknown32
-			return_string += "Unknown33: %08x\n" % self.unknown33
+			return_string += "Four Bytes: %08x\n" % self.unknown33
 			return_string += "Unknown34: %08x\n" % self.unknown34
 			return_string += "Unknown35: %08x\n" % self.unknown35
 			return_string += "Unknown36: %08x\n" % self.unknown36
-			return_string += "Unknown37: %.9f\n" % self.unknown37
-			return_string += "Unknown38: %.9f\n" % self.unknown38
-			return_string += "Unknown39: %.9f\n" % self.unknown39
-			return_string += "Unknown40: %.9f\n" % self.unknown40
-			return_string += "Unknown41: %.9f\n" % self.unknown41
+			return_string += "Transform Scale X: %.9f\n" % self.unknown37
+			return_string += "Transform Scale Y: %.9f\n" % self.unknown38
+			return_string += "Transform Scale Z: %.9f\n" % self.unknown39
+			return_string += "Center of Particle SRT Horiz: %.9f\n" % self.unknown40
+			return_string += "Center of Particle SRT Vert: %.9f\n" % self.unknown41
 			return_string += "Unknown42: %08x\n" % self.unknown42
 			return_string += "Unknown43: %08x\n" % self.unknown43
 			return_string += "Unknown44: %.9f\n" % self.unknown44
@@ -211,19 +212,19 @@ class BREFF(object):
 			return_string += "Unknown78: %08x\n" % self.unknown78
 			return_string += "Unknown79: %08x\n" % self.unknown79
 			return_string += "Unknown80: %08x\n" % self.unknown80
-			return_string += "Unknown81: %08x\n" % self.unknown81
-			return_string += "Unknown82: %08x\n" % self.unknown82
-			return_string += "Unknown83: %08x\n" % self.unknown83
-			return_string += "Unknown84: %08x\n" % self.unknown84
+			return_string += "Unknown81: %.9f\n" % self.unknown81
+			return_string += "Unknown82: %.9f\n" % self.unknown82
+			return_string += "Unknown83: %.9f\n" % self.unknown83
+			return_string += "Unknown84: %.9f\n" % self.unknown84
 			return_string += "Unknown85: %08x\n" % self.unknown85
 			return_string += "Unknown86: %08x\n" % self.unknown86
 			return_string += "Unknown87: %08x\n" % self.unknown87
-			return_string += "Unknown88: %08x\n" % self.unknown88
-			return_string += "Unknown89: %08x\n" % self.unknown89
-			return_string += "Unknown90: %08x\n" % self.unknown90
-			return_string += "Unknown91: %08x\n" % self.unknown91
-			return_string += "Unknown92: %08x\n" % self.unknown92
-			return_string += "Unknown93: %08x\n" % self.unknown93
+			return_string += "Unknown88: %.9f\n" % self.unknown88
+			return_string += "Unknown89: %.9f\n" % self.unknown89
+			return_string += "Unknown90: %.9f\n" % self.unknown90
+			return_string += "Unknown91: %.9f\n" % self.unknown91
+			return_string += "Unknown92: %.9f\n" % self.unknown92
+			return_string += "Unknown93: %.9f\n" % self.unknown93
 			return_string += "Unknown94: %08x\n" % self.unknown94
 			return_string += "Unknown95: %08x\n" % self.unknown95
 			return_string += "Unknown96: %08x\n" % self.unknown96
@@ -242,7 +243,6 @@ class BREFF(object):
 			return_string += "UnknownA9: %08x\n" % self.unknownA9
 			return_string += "UnknownB0: %08x\n" % self.unknownB0
 			return_string += "UnknownB1: %08x\n" % self.unknownB1
-			return_string += "UnknownB2: %08x\n" % self.unknownB2
 			return return_string
 
 	class BREFF_REFF_StringSection1(Struct):
@@ -260,11 +260,9 @@ class BREFF(object):
 		def __format__(self):
 			self.magic = Struct.string(4)
 			self.length = Struct.uint32
-			self.chunk_cnt = Struct.uint32
 		def __str__(self):
 			return_string  = "Magic: %s\n" % self.magic
 			return_string += "Length: %08x\n" % self.length
-			return_string += "Chunk Count: %08x\n" % self.chunk_cnt
 			return return_string
 
 	class BREFF_Header(Struct):
@@ -302,6 +300,10 @@ class BREFF(object):
 		print reff
 		assert reff.magic == "REFF"
 		
+		temp = pos
+		project = Struct.uint32(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Header Size: %08x" % project
 		unknown = Struct.uint32(data[pos:pos+4], endian='>')
 		pos += 4
 		print "Unknown: %08x" % unknown
@@ -315,12 +317,23 @@ class BREFF(object):
 		pos += 2
 		print "Unknown: %04x" % unknown
 		string = data[pos:pos+str_length-1]
-		pos += str_length + (2 - (str_length % 2))
+		pos += str_length 
 		print "String: %s\n" % string
 
-		unknown = Struct.uint32(data[pos:pos+4], endian='>')
-		pos += 4
-		print "Offset or Length: %08x" % unknown
+		while pos % 2:
+			unknown = Struct.uint8(data[pos:pos+1])
+			pos += 1
+			print "Padding: %02x" % unknown
+
+		print "\n%08x\n" % pos
+		temp = pos
+
+		unknown = Struct.uint16(data[pos:pos+2], endian='>')
+		pos += 2
+		print "Offset: %04x" % unknown
+		unknown = Struct.uint16(data[pos:pos+2], endian='>')
+		pos += 2
+		print "Length: %04x" % unknown
 
 		print "\n%08x\n" % pos
 
@@ -349,16 +362,16 @@ class BREFF(object):
 
 		print "\n%08x\n" % pos
 
-		while pos % 0x10:
+		while pos % 0x04:
 			padding = Struct.uint8(data[pos:pos+1])
 			pos += 1
 			print "Padding: %02x" % padding
 
 		print "\n%08x\n" % pos
 
-		assert pos == string_groups[0].offset + 0x34
+		assert pos == string_groups[0].offset + temp
 		for x in xrange(string_cnt):
-			pos = 0x34 + string_groups[x].offset
+			pos = temp + string_groups[x].offset
 			reff_section2 = self.BREFF_REFF_Section2()
 			reff_section2.unpack(data[pos:pos+len(reff_section2)])
 			pos += len(reff_section2)
@@ -372,39 +385,39 @@ class BREFF(object):
 		unknown = Struct.uint32(data[pos:pos+4], endian='>')
 		pos += 4
 		print "Unknown02: %08x" % unknown
-		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		unknown = Struct.float(data[pos:pos+4], endian='>')
 		pos += 4
-		print "Unknown03: %08x" % unknown
-		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		print "Unknown03: %f" % unknown
+		unknown = Struct.float(data[pos:pos+4], endian='>')
 		pos += 4
-		print "Unknown04: %08x" % unknown
-		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		print "Unknown04: %f" % unknown
+		unknown = Struct.float(data[pos:pos+4], endian='>')
 		pos += 4
-		print "Unknown05: %08x" % unknown
+		print "Unknown05: %f" % unknown
 		unknown = Struct.float(data[pos:pos+4], endian='>')
 		pos += 4
 		print "Unknown06: %f" % unknown
-		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		unknown = Struct.float(data[pos:pos+4], endian='>')
 		pos += 4
-		print "Unknown07: %08x" % unknown
+		print "Unknown07: %f" % unknown
 		unknown = Struct.uint32(data[pos:pos+4], endian='>')
 		pos += 4
 		print "Unknown08: %08x" % unknown
 		unknown = Struct.uint32(data[pos:pos+4], endian='>')
 		pos += 4
 		print "Unknown09: %08x" % unknown
-		unknown = Struct.uint32(data[pos:pos+4], endian='>')
-		pos += 4
-		print "Unknown10: %08x" % unknown
-		unknown = Struct.uint32(data[pos:pos+4], endian='>')
-		pos += 4
-		print "Unknown11: %08x" % unknown
-		unknown = Struct.uint32(data[pos:pos+4], endian='>')
-		pos += 4
-		print "Unknown12: %08x" % unknown
 		unknown = Struct.float(data[pos:pos+4], endian='>')
 		pos += 4
-		print "PI TIMES 2 BITCHES: %.20f" % unknown
+		print "Size Outer Radius X: %f" % unknown
+		unknown = Struct.float(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Size Outer Radius Y: %f" % unknown
+		unknown = Struct.float(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Size Outer Radius Z: %f" % unknown
+		unknown = Struct.float(data[pos:pos+4], endian='>')
+		pos += 4
+		print "Inner Radius: %f" % unknown
 		unknown = Struct.uint32(data[pos:pos+4], endian='>')
 		pos += 4
 		print "Unknown14: %08x" % unknown
@@ -414,24 +427,24 @@ class BREFF(object):
 		unknown = Struct.uint32(data[pos:pos+4], endian='>')
 		pos += 4
 		print "Unknown16: %08x" % unknown
-		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		unknown = Struct.float(data[pos:pos+4], endian='>')
 		pos += 4
-		print "Unknown17: %08x" % unknown
-		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		print "All Direction Speed: %f" % unknown
+		unknown = Struct.float(data[pos:pos+4], endian='>')
 		pos += 4
-		print "Unknown18: %08x" % unknown
-		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		print "Y Axis Difuse Speed: %f" % unknown
+		unknown = Struct.float(data[pos:pos+4], endian='>')
 		pos += 4
-		print "Unknown19: %08x" % unknown
-		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		print "Random Direction Speed: %f" % unknown
+		unknown = Struct.float(data[pos:pos+4], endian='>')
 		pos += 4
-		print "Unknown20: %08x" % unknown
+		print "Normal Direction Speed: %f" % unknown
 		unknown = Struct.float(data[pos:pos+4], endian='>')
 		pos += 4
 		print "PI DIVIDED BY 4 BITCHES: %.20f" % unknown
 		unknown = Struct.float(data[pos:pos+4], endian='>')
 		pos += 4
-		print "Unknown22: %f" % unknown
+		print "Move to specific direction: %f" % unknown
 		unknown = Struct.float(data[pos:pos+4], endian='>')
 		pos += 4
 		print "Unknown23: %f" % unknown
@@ -444,15 +457,15 @@ class BREFF(object):
 		unknown = Struct.uint32(data[pos:pos+4], endian='>')
 		pos += 4
 		print "Unknown26: %08x" % unknown
-		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		unknown = Struct.float(data[pos:pos+4], endian='>')
 		pos += 4
-		print "Unknown27: %08x" % unknown
-		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		print "Unknown27: %f" % unknown
+		unknown = Struct.float(data[pos:pos+4], endian='>')
 		pos += 4
-		print "Unknown28: %08x" % unknown
-		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		print "Unknown28: %f" % unknown
+		unknown = Struct.float(data[pos:pos+4], endian='>')
 		pos += 4
-		print "Unknown29: %08x" % unknown
+		print "Unknown29: %f" % unknown
 		unknown = Struct.uint32(data[pos:pos+4], endian='>')
 		pos += 4
 		print "Unknown30: %08x" % unknown
@@ -464,7 +477,7 @@ class BREFF(object):
 		print "Unknown32: %08x" % unknown
 		unknown = Struct.uint32(data[pos:pos+4], endian='>')
 		pos += 4
-		print "Unknown33: %08x" % unknown
+		print "Bytes: %08x" % unknown
 		unknown = Struct.uint32(data[pos:pos+4], endian='>')
 		pos += 4
 		print "Unknown34: %08x" % unknown
@@ -476,19 +489,19 @@ class BREFF(object):
 		print "Unknown36: %08x" % unknown
 		unknown = Struct.float(data[pos:pos+4], endian='>')
 		pos += 4
-		print "Unknown37: %f" % unknown
+		print "Transform Scale X: %f" % unknown
 		unknown = Struct.float(data[pos:pos+4], endian='>')
 		pos += 4
-		print "Unknown38: %f" % unknown
+		print "Transform Scale Y: %f" % unknown
 		unknown = Struct.float(data[pos:pos+4], endian='>')
 		pos += 4
-		print "Unknown39: %f" % unknown
-		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		print "Transform Scale Z: %f" % unknown
+		unknown = Struct.float(data[pos:pos+4], endian='>')
 		pos += 4
-		print "Unknown40: %08x" % unknown
-		unknown = Struct.uint32(data[pos:pos+4], endian='>')
+		print "Center of Particle SRT Horizontal(x): %f" % unknown
+		unknown = Struct.float(data[pos:pos+4], endian='>')
 		pos += 4
-		print "Unknown41: %08x" % unknown
+		print "Center of Particle SRT Verticle(y): %f" % unknown
 		unknown = Struct.uint32(data[pos:pos+4], endian='>')
 		pos += 4
 		print "Unknown42: %08x" % unknown
@@ -512,7 +525,7 @@ class BREFF(object):
 		print "Unknown48: %08x" % unknown
 		LARGE TEST DATA '''
 
-		#''' BEGIN TEST DATA  
+		''' BEGIN TEST DATA  
 		unknown = Struct.uint32(data[pos:pos+4], endian='>')
 		pos += 4
 		print "Unknown: %08x" % unknown
@@ -543,7 +556,7 @@ class BREFF(object):
 		unknown = Struct.uint32(data[pos:pos+4], endian='>')
 		pos += 4
 		print "Unknown: %08x" % unknown
-		#END TEST DATA '''
+		END TEST DATA '''
 
 def main():
 	if len(sys.argv) != 2:
