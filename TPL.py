@@ -513,22 +513,21 @@ class TPL():
 		
 		Again, only a single texture is supported."""
 		import wx
-		class imp(wx.Panel):
-			def __init__(self, parent, id, im):
-				wx.Panel.__init__(self, parent, id)
+		class imp(wx.Dialog):
+			def __init__(self, title, im):
 				w = img.GetWidth()
 				h = img.GetHeight()
-				wx.StaticBitmap(self, -1, im, ( ((max(w, 300) - w) / 2), ((max(h, 200) - h) / 2) ), (w, h))
+				
+				wx.Dialog.__init__(self, None, -1, title, size = (max(w, 300), max(h, 200)))
 
+				wx.StaticBitmap(self, -1, im, ( ((max(w, 300) - w) / 2), ((max(h, 200) - h) / 2) ), (w, h))
 		self.toImage("tmp.png")
 		img = wx.Image("tmp.png", wx.BITMAP_TYPE_ANY).ConvertToBitmap()
 		w = img.GetWidth()
 		h = img.GetHeight()
-		app = wx.App(redirect = False)
-		frame = wx.Frame(None, -1, "TPL (" + str(w) + ", " + str(h) + ")", size = (max(w, 300), max(h, 200)))
-		image = imp(frame, -1, img)
-		frame.Show(True)
-		app.MainLoop()
+		dialog = imp("TPL (" + str(w) + ", " + str(h) + ")", img)
+		dialog.ShowModal()
+		dialog.Destroy()
 		os.unlink("tmp.png")
 	def RGBA8(self, (x, y), data):
 		out = [0 for i in range(x * y)]
