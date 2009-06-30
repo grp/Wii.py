@@ -99,19 +99,19 @@ class BREFF(object):
 			self.unknown78 = Struct.uint32
 			self.unknown79 = Struct.uint32
 			self.unknown80 = Struct.uint32
-			self.unknown81 = Struct.uint32
-			self.unknown82 = Struct.uint32
-			self.unknown83 = Struct.uint32
-			self.unknown84 = Struct.uint32
+			self.unknown81 = Struct.float
+			self.unknown82 = Struct.float
+			self.unknown83 = Struct.float
+			self.unknown84 = Struct.float
 			self.unknown85 = Struct.uint32
 			self.unknown86 = Struct.uint32
 			self.unknown87 = Struct.uint32
-			self.unknown88 = Struct.uint32
-			self.unknown89 = Struct.uint32
-			self.unknown90 = Struct.uint32
-			self.unknown91 = Struct.uint32
-			self.unknown92 = Struct.uint32
-			self.unknown93 = Struct.uint32
+			self.unknown88 = Struct.float
+			self.unknown89 = Struct.float
+			self.unknown90 = Struct.float
+			self.unknown91 = Struct.float
+			self.unknown92 = Struct.float
+			self.unknown93 = Struct.float
 			self.unknown94 = Struct.uint32
 			self.unknown95 = Struct.uint32
 			self.unknown96 = Struct.uint32
@@ -212,19 +212,19 @@ class BREFF(object):
 			return_string += "Unknown78: %08x\n" % self.unknown78
 			return_string += "Unknown79: %08x\n" % self.unknown79
 			return_string += "Unknown80: %08x\n" % self.unknown80
-			return_string += "Unknown81: %08x\n" % self.unknown81
-			return_string += "Unknown82: %08x\n" % self.unknown82
-			return_string += "Unknown83: %08x\n" % self.unknown83
-			return_string += "Unknown84: %08x\n" % self.unknown84
+			return_string += "Unknown81: %.9f\n" % self.unknown81
+			return_string += "Unknown82: %.9f\n" % self.unknown82
+			return_string += "Unknown83: %.9f\n" % self.unknown83
+			return_string += "Unknown84: %.9f\n" % self.unknown84
 			return_string += "Unknown85: %08x\n" % self.unknown85
 			return_string += "Unknown86: %08x\n" % self.unknown86
 			return_string += "Unknown87: %08x\n" % self.unknown87
-			return_string += "Unknown88: %08x\n" % self.unknown88
-			return_string += "Unknown89: %08x\n" % self.unknown89
-			return_string += "Unknown90: %08x\n" % self.unknown90
-			return_string += "Unknown91: %08x\n" % self.unknown91
-			return_string += "Unknown92: %08x\n" % self.unknown92
-			return_string += "Unknown93: %08x\n" % self.unknown93
+			return_string += "Unknown88: %.9f\n" % self.unknown88
+			return_string += "Unknown89: %.9f\n" % self.unknown89
+			return_string += "Unknown90: %.9f\n" % self.unknown90
+			return_string += "Unknown91: %.9f\n" % self.unknown91
+			return_string += "Unknown92: %.9f\n" % self.unknown92
+			return_string += "Unknown93: %.9f\n" % self.unknown93
 			return_string += "Unknown94: %08x\n" % self.unknown94
 			return_string += "Unknown95: %08x\n" % self.unknown95
 			return_string += "Unknown96: %08x\n" % self.unknown96
@@ -319,6 +319,11 @@ class BREFF(object):
 		string = data[pos:pos+str_length-1]
 		pos += str_length 
 		print "String: %s\n" % string
+
+		while pos % 2:
+			unknown = Struct.uint8(data[pos:pos+1])
+			pos += 1
+			print "Padding: %02x" % unknown
 
 		print "\n%08x\n" % pos
 		temp = pos
