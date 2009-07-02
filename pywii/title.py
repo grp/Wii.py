@@ -79,9 +79,7 @@ class Ticket:
 		if(self.tik.commonkey_index == 1): #korean, kekekekek!
 			commonkey = koreankey
 		self.titlekey = Crypto().decryptTitleKey(commonkey, self.tik.titleid, self.tik.enctitlekey)
-	@classmethod
-	def load(cls, data):
-		self = cls()
+	def load(self, data):
 		self.tik.unpack(data[:len(self.tik)])
 		
 		commonkey = "\xEB\xE4\x2A\x22\x5E\x85\x93\xE4\x48\xD9\xC5\x45\x73\x81\xAA\xF7"
@@ -92,9 +90,8 @@ class Ticket:
 		
 		self.titlekey = Crypto().decryptTitleKey(commonkey, self.tik.titleid, self.tik.enctitlekey)
 		return self
-	@classmethod
-	def loadFile(cls, filename):
-		return cls.load(open(filename, "rb").read())
+	def loadFile(self, filename):
+		return self.load(open(filename, "rb").read())
 	def getTitleKey(self):
 		"""Returns a string containing the title key."""
 		return self.titlekey
@@ -319,12 +316,12 @@ class NUS:
 			versionstring = ".%u" % self.version
 		
 		urllib.urlretrieve(self.baseurl + "tmd" + versionstring, "tmd")
-		tmd = TMD.loadFile("tmd")
-		tmd.rawdump("tmd") # strip certs
+		tmd = TMD().loadFile("tmd")
+		tmd.rawdump("tmd") #this is to strip off the certs, and this won't fakesign so it should work
 		
 		urllib.urlretrieve(self.baseurl + "cetk", "tik")
-		tik = Ticket.loadFile("tik")
-		tik.rawdump("tik") # strip certs
+		tik = Ticket().loadFile("tik")
+		tik.rawdump("tik") #this is to strip off the certs, and this won't fakesign so it should work
 		if(decrypt):
 			titlekey = tik.getTitleKey()
 		

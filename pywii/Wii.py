@@ -2,7 +2,6 @@ __all__ = []
 
 from common import *
 from formats import *
-from banner import *
 from title import *
 from disc import *
 from image import *
