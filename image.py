@@ -1,4 +1,5 @@
 from common import *
+import wx
 
 def flatten(myTuple):
 	if (len(myTuple) == 4):
@@ -410,7 +411,7 @@ class TPL():
 			tex.unpack(data[head.header_offset:head.header_offset + len(tex)])
 			w = tex.width
 			h = tex.height
-		
+			print tex.format
 			if(tex.format == 0): #I4, 4-bit
 				tpldata = struct.unpack(">" + str((w * h) / 2) + "B", data[tex.data_off:tex.data_off + ((w * h) / 2)])
 				rgbdata = self.I4((w, h), tpldata)
@@ -605,7 +606,7 @@ class TPL():
 						r = (pixel >> 4) * 255 / 15
 						g = (pixel >> 4) * 255 / 15
 						b = (pixel >> 4) * 255 / 15
-						a = 255
+						a = (pixel >> 4) * 255 / 15
 
 						rgba = (r << 0) | (g << 8) | (b << 16) | (a << 24)
 						out[y1 * w + x1] = rgba
@@ -618,7 +619,7 @@ class TPL():
 						r = (pixel & 0x0F) * 255 / 15
 						g = (pixel & 0x0F) * 255 / 15
 						b = (pixel & 0x0F) * 255 / 15
-						a = 255
+						a = (pixel & 0x0F) * 255 / 15
 
 						rgba = (r << 0) | (g << 8) | (b << 16) | (a << 24)
 						out[y1 * w + x1 + 1] = rgba
@@ -794,3 +795,7 @@ class TPL():
 						rgba = (r << 0) | (g << 8) | (b << 16) | (a << 24)
 						out[y1 * w + x1] = rgba
 		return ''.join(Struct.uint32(p) for p in out)
+if __name__=='__main__':
+	app = wx.PySimpleApp()
+	app.MainLoop()
+	TPL(*sys.argv[1:]).toScreen()
