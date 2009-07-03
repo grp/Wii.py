@@ -385,12 +385,14 @@ class NAND:
 		tmdpth = self.f + "/title/%08x/%08x/content/title.tmd" % (title >> 32, title & 0xFFFFFFFF)
 		if(version != 0):
 			tmdpth += ".%d" % version
-		tmd = TMD().loadFile(tmdpth)
+		tmd = TMD.loadFile(tmdpth)
 		if(not os.path.isdir("export")):
 			os.mkdir("export")
-		tmd.dump("export/tmd")
-		tik = Ticket().loadFile(self.f + "/ticket/%08x/%08x.tik" % (title >> 32, title & 0xFFFFFFFF))
-		tik.dump("export/tik")
+		tmd.fakesign()
+		tmd.dumpFile("export/tmd")
+		tik = Ticket.loadFile(self.f + "/ticket/%08x/%08x.tik" % (title >> 32, title & 0xFFFFFFFF))
+		tik.fakesign()
+		tik.dumpFile("export/tik")
 		contents = tmd.getContents()
 		for i in range(tmd.tmd.numcontents):
 			path = ""
@@ -645,14 +647,14 @@ class ESClass:
 	def Identify(self, id, version=0):
 		if(not os.path.isfile(self.f + "/ticket/%08x/%08x.tik" % (id >> 32, id & 0xFFFFFFFF))):
 			return None
-		tik = Ticket().loadFile(self.f + "/ticket/%08x/%08x.tik" % (id >> 32, id & 0xFFFFFFFF))
+		tik = Ticket.loadFile(self.f + "/ticket/%08x/%08x.tik" % (id >> 32, id & 0xFFFFFFFF))
 		titleid = tik.titleid
 		path = "/title/%08x/%08x/content/title.tmd" % (titleid >> 32, titleid & 0xFFFFFFFF)
 		if(version):
 			path += ".%d" % version
 		if(not os.path.isfile(self.f + path)):
 			return None
-		tmd = TMD().loadFile(self.f + path)
+		tmd = TMD.loadFile(self.f + path)
 		self.title = titleid
 		self.group = tmd.tmd.group_id
 		return self.title
@@ -670,7 +672,7 @@ class ESClass:
 			path += ".%d" % version
 		if(not os.path.isfile(self.f + path)):
 			return None
-		return TMD().loadFile(self.f + path)
+		return TMD.loadFile(self.f + path)
 	def GetTitleContentsCount(self, titleid, version=0):
 		"""Gets the number of contents the title with the specified titleid and version has."""
 		tmd = self.GetStoredTMD(titleid, version)
@@ -708,7 +710,7 @@ class ESClass:
 		return
 	def AddTicket(self, tik):
 		"""Adds ticket to the title being added."""
-		tik.rawdump(self.f + "/tmp/title.tik")
+		tik.dumpFile(self.f + "/tmp/title.tik")
 		self.ticketadded = 1
 	def DeleteTicket(self, tikview):
 		"""Deletes the ticket relating to tikview
@@ -716,7 +718,7 @@ class ESClass:
 		return
 	def AddTitleTMD(self, tmd):
 		"""Adds TMD to the title being added."""
-		tmd.rawdump(self.f + "/tmp/title.tmd")
+		tmd.dumpFile(self.f + "/tmp/title.tmd")
 		self.tmdadded = 1
 	def AddContentStart(self, titleid, cid):
 		"""Starts adding a content with content id cid to the title being added with ID titleid."""
@@ -724,9 +726,9 @@ class ESClass:
 			"Trying to start an already existing process"
 			return -41
 		if(self.tmdadded):
-			a = TMD().loadFile(self.f + "/tmp/title.tmd")
+			a = TMD.loadFile(self.f + "/tmp/title.tmd")
 		else:
-			a = TMD().loadFile(self.f + "/title/%08x/%08x/content/title.tmd.%d" % (self.wtitleid >> 32, self.wtitleid & 0xFFFFFFFF, tmd.tmd.title_version))
+			a = TMD.loadFile(self.f + "/title/%08x/%08x/content/title.tmd.%d" % (self.wtitleid >> 32, self.wtitleid & 0xFFFFFFFF, tmd.tmd.title_version))
 		x = self.getContentIndexFromCID(a, cid)
 		if(x == None):
 			"Not a valid Content ID"
@@ -766,11 +768,11 @@ class ESClass:
 	def AddTitleFinish(self):
 		"""Finishes the adding of a title."""
 		if(self.ticketadded):
-			tik = Ticket().loadFile(self.f + "/tmp/title.tik")
+			tik = Ticket.loadFile(self.f + "/tmp/title.tik")
 		else:
-			tik = Ticket().loadFile(self.f + "/ticket/%08x/%08x.tik" % (self.wtitleid >> 32, self.wtitleid & 0xFFFFFFFF))
+			tik = Ticket.loadFile(self.f + "/ticket/%08x/%08x.tik" % (self.wtitleid >> 32, self.wtitleid & 0xFFFFFFFF))
 		if(self.tmdadded):
-			tmd = TMD().loadFile(self.f + "/tmp/title.tmd")
+			tmd = TMD.loadFile(self.f + "/tmp/title.tmd")
 		contents = tmd.getContents()
 		for i in range(self.workingcidcnt):
 			idx = self.getContentIndexFromCID(tmd, self.workingcids[i])
@@ -805,12 +807,12 @@ class ESClass:
 			outfp.close()
 		if(self.tmdadded and self.use_version):
 			self.nand.newFile("/title/%08x/%08x/content/title.tmd.%d" % (self.wtitleid >> 32, self.wtitleid & 0xFFFFFFFF, tmd.tmd.title_version), "rwrw--", 0x0000)
-			tmd.rawdump(self.f + "/title/%08x/%08x/content/title.tmd.%d" % (self.wtitleid >> 32, self.wtitleid & 0xFFFFFFFF, tmd.tmd.title_version))
+			tmd.dumpFile(self.f + "/title/%08x/%08x/content/title.tmd.%d" % (self.wtitleid >> 32, self.wtitleid & 0xFFFFFFFF, tmd.tmd.title_version))
 		elif(self.tmdadded):
 			self.nand.newFile("/title/%08x/%08x/content/title.tmd" % (self.wtitleid >> 32, self.wtitleid & 0xFFFFFFFF), "rwrw--", 0x0000)
-			tmd.rawdump(self.f + "/title/%08x/%08x/content/title.tmd" % (self.wtitleid >> 32, self.wtitleid & 0xFFFFFFFF))
+			tmd.dumpFile(self.f + "/title/%08x/%08x/content/title.tmd" % (self.wtitleid >> 32, self.wtitleid & 0xFFFFFFFF))
 		if(self.ticketadded):
 			self.nand.newFile("/ticket/%08x/%08x.tik" % (self.wtitleid >> 32, self.wtitleid & 0xFFFFFFFF), "rwrw--", 0x0000)
-			tik.rawdump(self.f + "/ticket/%08x/%08x.tik" % (self.wtitleid >> 32, self.wtitleid & 0xFFFFFFFF))
+			tik.dumpFile(self.f + "/ticket/%08x/%08x.tik" % (self.wtitleid >> 32, self.wtitleid & 0xFFFFFFFF))
 		self.AddTitleCancel()
 		return 0

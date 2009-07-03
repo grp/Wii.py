@@ -37,7 +37,7 @@ class TicketView:
 		
 		return out
 
-class Ticket:	
+class Ticket(WiiObject):	
 	"""Creates a ticket from the filename defined in f. This may take a longer amount of time than expected, as it also decrypts the title key. Now supports Korean tickets (but their title keys stay Korean on dump)."""
 	class TicketStruct(Struct):
 		__endian__ = Struct.BE
@@ -79,9 +79,7 @@ class Ticket:
 		if(self.tik.commonkey_index == 1): #korean, kekekekek!
 			commonkey = koreankey
 		self.titlekey = Crypto().decryptTitleKey(commonkey, self.tik.titleid, self.tik.enctitlekey)
-	@classmethod
-	def load(cls, data):
-		self = cls()
+	def _load(self, data):
 		self.tik.unpack(data[:len(self.tik)])
 		
 		commonkey = "\xEB\xE4\x2A\x22\x5E\x85\x93\xE4\x48\xD9\xC5\x45\x73\x81\xAA\xF7"
@@ -92,9 +90,6 @@ class Ticket:
 		
 		self.titlekey = Crypto().decryptTitleKey(commonkey, self.tik.titleid, self.tik.enctitlekey)
 		return self
-	@classmethod
-	def loadFile(cls, filename):
-		return cls.load(open(filename, "rb").read())
 	def getTitleKey(self):
 		"""Returns a string containing the title key."""
 		return self.titlekey
@@ -128,7 +123,7 @@ class Ticket:
 		out += "\n"
 		
 		return out
-	def dump(self, fn = ""):
+	def fakesign(self):
 		"""Fakesigns (or Trucha signs) and dumps the ticket to either fn, if not empty, or overwriting the source if empty. Returns the output filename."""
 		self.rsamod = self.rsamod = "\x00" * 256
 		for i in range(65536):
@@ -137,25 +132,13 @@ class Ticket:
 				break
 			if(i == 65535):
 				raise ValueError("Failed to fakesign. Aborting...")
-			
-		if(fn == ""):
-			open(self.f, "wb").write(self.tik.pack())
-			return self.f
-		else:
-			open(fn, "wb").write(self.tik.pack())
-			return fn
-	def rawdump(self, fn = ""):
+	def _dump(self):
 		"""Dumps the ticket to either fn, if not empty, or overwriting the source if empty. **Does not fakesign.** Returns the output filename."""
-		if(fn == ""):
-			open(self.f, "wb").write(self.tik.pack())
-			return self.f
-		else:
-			open(fn, "wb").write(self.tik.pack())
-			return fn
+		return self.tik.pack()
 	def __len__(self):
 		return len(self.tik)
 
-class TMD:
+class TMD(WiiObject):
 	"""This class allows you to edit TMDs. TMD (Title Metadata) files are used in many places to hold information about titles. The parameter f to the initialization is the filename to open and create a TMD from."""
 	class TMDContent(Struct):
 		__endian__ = Struct.BE
@@ -184,7 +167,7 @@ class TMD:
 			self.boot_index = Struct.uint16
 			self.padding2 = Struct.uint16
 			#contents follow this
-	def load(self, data):
+	def _load(self, data):
 		self.tmd.unpack(data[:len(self.tmd)])
 		pos = len(self.tmd)
 		for i in range(self.tmd.numcontents):
@@ -192,9 +175,6 @@ class TMD:
 			cont.unpack(data[pos:pos + len(cont)])
 			pos += len(cont)
 			self.contents.append(cont)
-		return self
-	def loadFile(self, filename):
-		return self.load(open(filename, "rb").read())
 	def __init__(self):
 		self.tmd = self.TMDStruct()
 		self.tmd.titleid = 0x0000000100000000
@@ -232,7 +212,7 @@ class TMD:
 		for i in range(len(contents)):
 			sz += len(contents[i])
 		return sz
-	def dump(self, fn = ""):
+	def fakesign(self):
 		"""Dumps the TMD to the filename specified in fn, if not empty. If that is empty, it overwrites the original. This fakesigns the TMD, but does not update the hashes and the sizes, that is left as a job for you. Returns output filename."""
 		for i in range(65536):
 			self.tmd.padding2 = i
@@ -245,26 +225,14 @@ class TMD:
 				break
 			if(i == 65535):
 				raise ValueError("Failed to fakesign! Aborting...")
-			
-		if(fn == ""):
-			open(self.f, "wb").write(data)
-			return self.f
-		else:
-			open(fn, "wb").write(data)
-			return fn
-	def rawdump(self, fn = ""):
+	def _dump(self):
 		"""Same as the :dump: function, but does not fakesign the TMD. Also returns output filename."""
 		data = ""
 		data += self.tmd.pack()
 		for i in range(self.tmd.numcontents):
 			data += self.contents[i].pack()
 					
-		if(fn == ""):
-			open(self.f, "wb").write(data)
-			return self.f
-		else:
-			open(fn, "wb").write(data)
-			return fn
+		return data
 	def getTitleID(self):
 		"""Returns the long integer title id."""
 		return self.tmd.titleid
@@ -320,11 +288,11 @@ class NUS:
 		
 		urllib.urlretrieve(self.baseurl + "tmd" + versionstring, "tmd")
 		tmd = TMD.loadFile("tmd")
-		tmd.rawdump("tmd") # strip certs
+		tmd.dumpFile("tmd") # strip certs
 		
 		urllib.urlretrieve(self.baseurl + "cetk", "tik")
 		tik = Ticket.loadFile("tik")
-		tik.rawdump("tik") # strip certs
+		tik.dumpFile("tik") # strip certs
 		if(decrypt):
 			titlekey = tik.getTitleKey()
 		

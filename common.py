@@ -62,3 +62,31 @@ class Crypto:
 #		else:
 #			return 0
 
+class WiiObject(object):
+	@classmethod
+	def load(cls, data):
+		self = cls()
+		self._load(data)
+		return self
+	@classmethod
+	def loadFile(cls, filename):
+		return cls.load(open(filename, "rb").read())
+	
+	def dump(self):
+		return self._dump()
+	def dumpFile(self, filename):
+		open(filename, "wb").write(self.dump())
+		return filename
+
+class WiiArchive(WiiObject):
+	@classmethod
+	def loadDir(cls, dirname):
+		self = cls()
+		self._loadDir(dirname)
+		return self
+		
+	def dumpDir(self, dirname):
+		if(not os.path.isdir(dirname)):
+			os.mkdir(dirname)
+		self._dumpDir(dirname)
+		return dirname
