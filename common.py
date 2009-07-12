@@ -51,16 +51,15 @@ class Crypto:
 	def createMD5Hash(self, data):
 		return hashlib.md5(data).digest()
 	def validateSHAHash(self, data, hash):
-		"""Validates a hash. Not checking currently because we have some...issues with hashes."""
-		return 1 #hack
-		if((len(data) % self.align) != 0):
-			datax = data + ("\x00" * (self.align - (len(data) % align)))
+		contentHash = hashlib.sha1(data).digest()
+		
+		print 'Content hash : %s : len %i' % (hexdump(contentHash), len(contentHash))
+		print 'Expected : %s : len %i' % (hexdump(hash), len(hash))
+		
+		if (contentHash == hash):
+			return 1
 		else:
-			datax = data
-#		if(hashlib.sha1(datax).hexdigest() == hexdump(hash, "")):
-#			return 1
-#		else:
-#			return 0
+			return 0
 
 class WiiObject(object):
 	@classmethod
