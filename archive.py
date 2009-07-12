@@ -89,6 +89,7 @@ class U8(WiiArchive):
 	def _dumpDir(self, dir):
 		if(not os.path.isdir(dir)):
 			os.mkdir(dir)
+		old = os.getcwd()
 		os.chdir(dir)
 		for item, data in self.files:
 			if(data == None):
@@ -96,12 +97,13 @@ class U8(WiiArchive):
 					os.mkdir(item)
 			else:
 				open(item, "wb").write(data)
-		os.chdir("..")
+		os.chdir(old)
 	def _loadDir(self, dir):
 		try:
 			self._tmpPath += ''
 		except:
 			self._tmpPath = ''
+		old = os.getcwd()
 		os.chdir(dir)
 		entries = os.listdir(".")
 		for entry in entries:
@@ -112,7 +114,7 @@ class U8(WiiArchive):
 			elif(os.path.isfile(entry)):
 				data = open(entry, "rb").read()
 				self.files.append((self._tmpPath + entry, data))
-		os.chdir("..")
+		os.chdir(old)
 		self._tmpPath = self._tmpPath[:self._tmpPath.find('/') + 1]
 	def _load(self, data):
 		offset = 0
@@ -148,7 +150,7 @@ class U8(WiiArchive):
 			if(node.type == 0x0100): # folder
 				recursion.append(node.size)
 				recursiondir.append(name)
-				assert len(recursion) == node.data_offset + 2 #bad idea?
+				assert len(recursion) == node.data_offset + 2 # haxx
 				self.files.append(('/'.join(recursiondir), None))
 			elif(node.type == 0): # file
 				self.files.append(('/'.join(recursiondir) + '/' + name, data[node.data_offset:node.data_offset + node.size]))
@@ -179,10 +181,11 @@ class U8(WiiArchive):
 				return val
 		raise KeyError
 	def __setitem__(self, key, val):
-		for i in self.files:
+		for i in range(len(self.files)):
 			if(self.files[i][0] == key):
-				self.files[i][1] = val
-		raise KeyError
+				self.files[i] = (self.files[i][0], val)
+				return
+		self.files.append((key, val))
 		
 
 class WAD:

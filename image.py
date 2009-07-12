@@ -541,11 +541,11 @@ class TPL():
 							if k == 0:
 								a = (texel >> 8) & 0xff
 								r = (texel >> 0) & 0xff
-								out[m + (l * x)] = out[m + (l * x)] | ((r<<0) | (a<<24))
+								out[m + (l * x)] |= ((r << 0) | (a << 24))
 							else:
 								g = (texel >> 8) & 0xff
 								b = (texel >> 0) & 0xff
-								out[m + (l * x)] = out[m + (l * x)] | ((g<<8) | (b<<16))
+								out[m + (l * x)] |= ((g << 8) | (b << 16))
 		return ''.join(Struct.uint32(p) for p in out)
 	def RGB5A3(self, (w, h), jar):
 		out = [0 for i in range(w * h)]
