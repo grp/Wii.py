@@ -73,7 +73,7 @@ class TPL():
 			self.format = Struct.uint32
 			self.offset = Struct.uint32
 	def __init__(self, file):
-		if(os.path.isfile(file)):
+		if(not ("\x00" in file) and os.path.isfile(file)):
 			self.file = file
 			self.data = None
 		else:

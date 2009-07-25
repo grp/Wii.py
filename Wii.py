@@ -10,6 +10,7 @@ from export import *
 from compression import *
 from nand import *
 from headers import *
+from bns import *
 
 if (__name__ == "__main__"):
 	Crypto()
@@ -18,4 +19,4 @@ if (__name__ == "__main__"):
 	
 	#insert non-dependant check code here
 	
-	print ("\nAll Wii.py components loaded sucessfully!\n")
+	print("\nAll Wii.py components loaded sucessfully!\n")

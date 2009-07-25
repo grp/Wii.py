@@ -24,15 +24,14 @@ class U8(WiiArchive):
 	def __init__(self):
 		self.files = []
 	def _dump(self):
-		"""This function will pack a folder into a U8 archive. The output file name is specified in the parameter fn. If fn is an empty string, the filename is deduced from the input folder name. Returns the output filename.
-		
-		This creates valid U8 archives for all purposes."""
 		header = self.U8Header()
 		rootnode = self.U8Node()
 		
+		# constants
 		header.tag = "U\xAA8-"
 		header.rootnode_offset = 0x20
 		header.zeroes = "\x00" * 16
+		rootnode.type = 0x0100
 		
 		nodes = []
 		strings = "\x00"
@@ -40,37 +39,35 @@ class U8(WiiArchive):
 		
 		for item, value in self.files:
 			node = self.U8Node()
-			node.name_offset = len(strings)
 			
 			recursion = item.count('/')
 			if(recursion < 0):
 				recursion = 0
 			name = item[item.rfind('/') + 1:]
+			
+			node.name_offset = len(strings)
 			strings += name + '\x00'
 		
 			if(value == None):
 				node.type = 0x0100
 				node.data_offset = recursion
 				
-				this_length = 0
+				node.size = len(nodes)
 				for one, two in self.files:
-					subdirs = one
-					if(subdirs.find(item) != -1):
-						this_length += 1
-				node.size = len(nodes) + this_length + 1
+					if(one[:len(item)] == item): # find nodes in the folder
+						node.size += 1
+				node.size += 1
 			else:
 				sz = len(value)
-				value += "\x00" * (align(sz, 32) - sz) #32 seems to work best for fuzzyness? I'm still really not sure
 				node.data_offset = len(data)
-				data += value
+				data += value + "\x00" * (align(sz, 32) - sz) # 32 seems to work best for fuzzyness? I'm still really not sure
 				node.size = sz
 				node.type = 0x0000
 			nodes.append(node)
 			
-		header.header_size = (len(nodes) + 1) * len(rootnode) + len(strings)
+		header.header_size = ((len(nodes) + 1) * len(rootnode)) + len(strings)
 		header.data_offset = align(header.header_size + header.rootnode_offset, 64)
 		rootnode.size = len(nodes) + 1
-		rootnode.type = 0x0100
 		
 		for i in range(len(nodes)):
 			if(nodes[i].type == 0x0000):
@@ -155,7 +152,7 @@ class U8(WiiArchive):
 			elif(node.type == 0): # file
 				self.files.append(('/'.join(recursiondir) + '/' + name, data[node.data_offset:node.data_offset + node.size]))
 				offset += node.size
-			else: # unknown
+			else: # unknown type -- wtf?
 				pass
 								
 			sz = recursion.pop()
@@ -178,7 +175,14 @@ class U8(WiiArchive):
 	def __getitem__(self, key):
 		for item, val in self.files:
 			if(item == key):
-				return val
+				if(val != None):
+					return val
+				else:
+					ret = []
+					for item2, val2 in self.files:
+						if(item2.find(item) == 0):
+							ret.append(item2[len(item) + 1:])
+					return ret[1:]
 		raise KeyError
 	def __setitem__(self, key, val):
 		for i in range(len(self.files)):
@@ -188,49 +192,103 @@ class U8(WiiArchive):
 		self.files.append((key, val))
 		
 
-class WAD:
-	"""This class is to pack and unpack WAD files, which store a single title. You pass the input filename or input directory name to the parameter f.
-	
-	WAD packing support currently creates WAD files that return -4100 on install."""
-	def __init__(self, f, boot2 = False):
-		self.f = f
-		self.boot2 = boot2
-	def pack(self, fn = "", fakesign = True, decrypted = True):
-		"""Packs a WAD into the filename specified by fn, if it is not empty. If it is empty, it packs into a filename generated from the folder's name. If fakesign is True, it will fakesign the Ticket and TMD, and update them as needed. If decrypted is true, it will assume the contents are already decrypted. For now, fakesign can not be True if decrypted is False, however fakesign can be False if decrypted is True. Title ID is a long integer of the destination title id."""
-		os.chdir(self.f)
+class WAD(WiiArchive):
+	def __init__(self, boot2 = False):
+		self.tmd = TMD()
+		self.tik = Ticket()
+		self.contents = []
+		self.boot2 = False
+		self.cert = ""
+	def _load(self, data):
+		if(self.boot2 != True):
+			headersize, wadtype, certsize, reserved, tiksize, tmdsize, datasize, footersize, padding = struct.unpack('>I4s6I32s', data[:64])
+			pos = 64
+		else:
+			headersize, data_offset, certsize, tiksize, tmdsize, padding = struct.unpack('>IIIII12s', data[:32])
+			pos = 32
+			
+		rawcert = data[pos:pos + certsize]
+		pos += certsize
+		if(self.boot2 != True):
+			if(certsize % 64 != 0):
+				pos += 64 - (certsize % 64)
+		self.cert = rawcert
+
+		rawtik = data[pos:pos + tiksize]
+		pos += tiksize
+		if(self.boot2 != True):
+			if(tiksize % 64 != 0):
+				pos += 64 - (tiksize % 64)
+		self.tik = Ticket.load(rawtik)
+				
+		rawtmd = data[pos:pos + tmdsize]
+		pos += tmdsize
+		if(self.boot2 == True):
+			pos = data_offset
+		else:
+			pos += 64 - (tmdsize % 64)
+		self.tmd = TMD.load(rawtmd)
 		
-		tik = Ticket.loadFile("tik")
-		tmd = TMD.loadFile("tmd")
-		titlekey = tik.getTitleKey()
-		contents = tmd.getContents()
+		titlekey = self.tik.getTitleKey()
+		contents = self.tmd.getContents()
+		for i in range(0, len(contents)):
+			tmpsize = contents[i].size
+			if(tmpsize % 16 != 0):
+				tmpsize += 16 - (tmpsize % 16)
+			encdata = data[pos:pos + tmpsize]
+			pos += tmpsize
+			decdata = Crypto().decryptContent(titlekey, contents[i].index, encdata)
+			self.contents.append(decdata)
+			if(tmpsize % 64 != 0):
+				pos += 64 - (tmpsize % 64)
+	def _loadDir(self, dir):
+		origdir = os.getcwd()
+		os.chdir(dir)
+		
+		self.tmd = TMD.loadFile("tmd")
+		self.tik = Ticket.loadFile("tik")
+		self.cert = open("cert", "rb").read()
+		
+		contents = self.tmd.getContents()
+		for i in range(len(contents)):
+			self.contents.append(open("%08x.app" % i, "rb").read())
+		os.chdir(origdir)
+	def _dumpDir(self, dir):
+		origdir = os.getcwd()
+		os.chdir(dir)
+		
+		contents = self.tmd.getContents()
+		for i in range(len(contents)):
+			open("%08x.app" % i, "wb").write(self.contents[i])
+		self.tmd.dumpFile("tmd")
+		self.tik.dumpFile("tik")
+		open("cert", "wb").write(self.cert)
+			
+		os.chdir(origdir)
+	def _dump(self, fakesign = True):
+		titlekey = self.tik.getTitleKey()
+		contents = self.tmd.getContents()
 		
 		apppack = ""
-		for content in contents:
-			tmpdata = open("%08x.app" % content.index, "rb").read()
+		for i, content in enumerate(contents):
+			if(fakesign):
+				content.hash = str(Crypto().createSHAHash(self.contents[content.index]))
+				content.size = len(self.contents[content.index])
 			
-			if(decrypted):
-				if(fakesign):
-					content.hash = str(Crypto().createSHAHash(tmpdata))
-					content.size = len(tmpdata)
-			
-				encdata = Crypto().encryptContent(titlekey, content.index, tmpdata)
-			else:
-				encdata = tmpdata
+			encdata = Crypto().encryptContent(titlekey, content.index, self.contents[content.index])
 			
 			apppack += encdata
 			if(len(encdata) % 64 != 0):
 				apppack += "\x00" * (64 - (len(encdata) % 64))
 					
 		if(fakesign):
-			tmd.setContents(contents)
-			tmd.fakesign()
-			tik.fakesign()
-			tmd.dumpFile("tmd")
-			tik.dumpFile("tik")
+			self.tmd.setContents(contents)
+			self.tmd.fakesign()
+			self.tik.fakesign()
 		
-		rawtmd = open("tmd", "rb").read()
-		rawcert = open("cert", "rb").read()
-		rawtik = open("tik", "rb").read()
+		rawtmd = self.tmd.dump()
+		rawcert = self.cert
+		rawtik = self.tik.dump()
 		
 		sz = 0
 		for i in range(len(contents)):
@@ -258,92 +316,16 @@ class WAD:
 			pack += "\x00" * (align(len(rawcert) + len(rawtik) + len(rawtmd), 0x40) - (len(rawcert) + len(rawtik) + len(rawtmd)))
 		
 		pack += apppack
-		
-		os.chdir('..')
-		if(fn == ""):
-			if(self.f[len(self.f) - 4:] == "_out"):
-				fn = os.path.dirname(self.f) + "/" + os.path.basename(self.f)[:len(os.path.basename(self.f)) - 4].replace("_", ".")
-			else:
-				fn = self.f
-		open(fn, "wb").write(pack)
-		return fn
-	def unpack(self, fn = ""):
-		"""Unpacks the WAD from the parameter f in the initializer to either the value of fn, if there is one, or a folder created with this formula: `filename_extension_out`. Certs are put in the file "cert", TMD in the file "tmd", ticket in the file "tik", and contents are put in the files based on index and with ".app" added to the end."""
-		fd = open(self.f, 'rb')
-		if(self.boot2 != True):
-			headersize, wadtype, certsize, reserved, tiksize, tmdsize, datasize, footersize, padding= struct.unpack('>I4s6I32s', fd.read(64))
-		else:
-			headersize, data_offset, certsize, tiksize, tmdsize, padding = struct.unpack('>IIIII12s', fd.read(32))
-		
-		try:
-			if(fn == ""):
-				fn = self.f.replace(".", "_") + "_out"
-			os.mkdir(fn)
-		except OSError:
-			pass
-		os.chdir(fn)
-		
-		rawcert = fd.read(certsize)
-		if(self.boot2 != True):
-			if(certsize % 64 != 0):
-				fd.seek(64 - (certsize % 64), 1)
-		open('cert', 'wb').write(rawcert)
-
-		rawtik = fd.read(tiksize)
-		if(self.boot2 != True):
-			if(tiksize % 64 != 0):
-				fd.seek(64 - (tiksize % 64), 1)
-		open('tik', 'wb').write(rawtik)
-				
-		rawtmd = fd.read(tmdsize)
-		if(self.boot2 == True):
-			fd.seek(data_offset)
-		else:
-			fd.seek(64 - (tmdsize % 64), 1)
-		open('tmd', 'wb').write(rawtmd)
-		
-		titlekey = Ticket.loadFile("tik").getTitleKey()
-		contents = TMD.loadFile("tmd").getContents()
-		for i in range(0, len(contents)):
-			tmpsize = contents[i].size
-			if(tmpsize % 16 != 0):
-				tmpsize += 16 - (tmpsize % 16)
-			tmptmpdata = fd.read(tmpsize)
-			tmpdata = Crypto().decryptContent(titlekey, contents[i].index, tmptmpdata)
-			open("%08x.app" % contents[i].index, "wb").write(tmpdata)
-			if(tmpsize % 64 != 0):
-				fd.seek(64 - (tmpsize % 64), 1)
-		fd.close()
-		os.chdir('..')
-		
-		return fn
+		return pack
+	def __getitem__(self, idx):
+		return self.contents[idx]
+	def __setitem__(self, idx, value):
+		self.contents[idx] = value
 	def __str__(self):
 		out = ""
 		out += "Wii WAD:\n"
-		fd = open(self.f, 'rb')
-		
-		if(self.boot2 != True):
-			headersize, wadtype, certsize, reserved, tiksize, tmdsize, datasize, footersize, padding= struct.unpack('>I4s6I32s', fd.read(64))
-		else:
-			headersize, data_offset, certsize, tiksize, tmdsize, padding = struct.unpack('>IIIII12s', fd.read(32))
-		
-		rawcert = fd.read(certsize)
-		if(certsize % 64 != 0):
-			fd.seek(64 - (certsize % 64), 1)
-		rawtik = fd.read(tiksize)
-		if(self.boot2 != True):
-			if(tiksize % 64 != 0):
-				fd.seek(64 - (tiksize % 64), 1)		
-		rawtmd = fd.read(tmdsize)
-		
-		if(self.boot2 != True):
-			out += " Header %02x Type '%s' Certs %x Tiket %x TMD %x Data %x Footer %x\n" % (headersize, wadtype, certsize, tiksize, tmdsize, datasize, footersize)
-		else:
-			out += " Header %02x Type 'boot2' Certs %x Tiket %x TMD %x Data @ %x\n" % (headersize, certsize, tiksize, tmdsize, data_offset)
-		
-		out += str(Ticket.load(rawtik))
-		out += str(TMD.load(rawtmd))
-		
+		out += str(self.tmd)
+		out += str(self.tik)		
 		return out
 
 
@@ -459,4 +441,14 @@ class CCF():
 			output.close()
 			
 			currentOffset += len(fileEntry)
-		
+
+if(__name__ == '__main__'):
+	wad = WAD.loadFile("testing.wad")
+	print wad
+	wad.dumpDir("outdir")
+	wad.dumpFile("interesting.wad", fakesign = False) #keyword arguements work as expected when calling _dump(). awesome.
+	wad2 = WAD.loadDir("outdir")
+	print wad2
+	wad3 = WAD.loadFile("interesting.wad")
+	print wad3
+	wad3.dumpDir("outdir2")
