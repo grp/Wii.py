@@ -40,8 +40,6 @@ def hexdump2(src, length = 16): # dumps to a "hex editor" style output
 		printable = s.translate(''.join([(len(repr(chr(x))) == 3) and chr(x) or '.' for x in range(256)]))
 		result.append("0x%04X   %-*s   %s\n" % (i, (length * 3) + 2, hexa, printable))
 	return ''.join(result)
-	
-print hexdump2("RANDOM STRING \x01 TESTING \x214 TEST OF STrasneljkasdhfleasdklhglkaje;shadlkghehaosehlgasdlkfhe;lakhsdglhaelksejdfffffffjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjasdfsadf")
 
 class Crypto(object):
 	"""This is a Cryptographic/hash class used to abstract away things (to make changes easier)"""

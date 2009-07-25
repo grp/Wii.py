@@ -1,7 +1,7 @@
 from common import *
 		
-class LZ77():
-	class WiiLZ77: #class by marcan
+class LZ77(WiiHeader):
+	class WiiLZ77: # class by marcan, used under scope of BSD license
 		TYPE_LZ77 = 1
 		def __init__(self, file, offset):
 			self.file = file
@@ -42,34 +42,15 @@ class LZ77():
 						break
 			self.data = dout
 			return self.data
-	def __init__(self, f):
-		self.f = f
-	def decompress(self, fn = ""):
-		"""This uncompresses a LZ77 compressed file, specified in f in the initializer. It outputs the file in either fn, if it isn't empty, or overwrites the input if it is. Returns the output filename."""
-		file = open(self.f, "rb")
- 		hdr = file.read(4)
+	def remove(self):
+ 		hdr = self.data[:4]
  		if hdr != "LZ77":
- 			if(fn == ""):
-				return self.f
-			else:
-				data = open(self.f, "rb").read()
-				open(fn, "wb").write(data)
+ 			return self.data
+		file = StringIO.StringIO(self.data)
+		file.seek(4)
 		unc = self.WiiLZ77(file, file.tell())
 		data = unc.uncompress()
-		file.close()
 		
-		if(fn != ""):
-			open(fn, "wb").write(data)
-			return fn
-		else:
-			open(self.f, "wb").write(data)
-			return self.f
+		return data
 	def compress(self, fn = ""):
-		"""This will eventually add LZ77 compression to a file. Does nothing for now."""
-		if(fn != ""):
-			#subprocess.call(["./gbalzss", self.f, fn, "-pack"])
-			return fn
-		else:
-			#subprocess.call(["./gbalzss", self.f, self.f, "-pack"])
-			return self.f
-
+		raise NotImplementedError
