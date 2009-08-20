@@ -1,6 +1,4 @@
-#!/usr/bin/env python
 from common import *
-import wx
 
 def flatten(myTuple):
 	if (len(myTuple) == 4):
@@ -31,7 +29,7 @@ def avg(w0, w1, c0, c1):
 	return c
 
 
-class TPL():
+class TPL:
 	"""This is the class to generate TPL texutres from PNG images, and to convert TPL textures to PNG images. The parameter file specifies the filename of the source, either a PNG image or a TPL image.
 	
 	Currently supported are the following formats to convert from TPL (all formats): RGBA8, RGB565, RGB5A3, I4, IA4, I8, IA8, CI4, CI8, CMP, CI14X2.
@@ -483,7 +481,10 @@ class TPL():
 		return outfile
 	def getSizes(self):
 		"""This returns a tuple containing the width and height of the TPL image filename in the class initializer. Will only return the size of single textured TPL images."""
-		data = open(self.file, "rb").read()
+		if(self.file):
+			data = open(self.file, "rb").read()
+		else:
+			data = self.data
 		
 		header = self.TPLHeader()
 		textures = []
@@ -506,9 +507,6 @@ class TPL():
 			h = tex.height
 		return (w, h)
 	def toScreen(self): #single texture only
-		"""This will draw a simple window with the TPL image displayed on it. It uses WxPython for the window creation and management. The window has a minimum width and height of 300 x 200. Does not return a value.
-		
-		Again, only a single texture is supported."""
 		import wx
 		class imp(wx.Dialog):
 			def __init__(self, title, im):

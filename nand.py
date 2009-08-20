@@ -363,38 +363,35 @@ class NAND:
 		a = iplsave(self.f + "/title/00000001/00000002/data/iplsave.bin", self)
 		a.deleteTitle(tid)
 
-	def importTitle(self, prefix, tmd, tik, add_to_menu = True, is_decrypted = False, result_decrypted = False):
+	def importTitle(self, title, add_to_menu = True, result_decrypted = False, use_version = True):
 		"""When passed a prefix (the directory to obtain the .app files from, sorted by content id), a TMD instance, and a Ticket instance, this will add that title to the NAND base folder specified in the constructor. If add_to_menu is True, the title (if neccessary) will be added to the menu. The default is True. Unless is_decrypted is set, the contents are assumed to be encrypted. If result_decrypted is True, then the contents will not end up decrypted."""
-		self.ES.AddTitleStart(tmd, None, None, is_decrypted, result_decrypted, use_version = True)
-		self.ES.AddTitleTMD(tmd)
-		self.ES.AddTicket(tik)
-		contents = tmd.getContents()
-		for i in range(tmd.tmd.numcontents):
-			self.ES.AddContentStart(tmd.tmd.titleid, contents[i].cid)
-			fp = open(prefix + "/%08x.app" % contents[i].cid, "rb")
-			data = fp.read()
-			fp.close()
-			self.ES.AddContentData(contents[i].cid, data)
-			self.ES.AddContentFinish(contents[i].cid)
+		self.ES.AddTitleStart(title.tmd, None, None, True, result_decrypted, use_version = use_version)
+		self.ES.AddTitleTMD(title.tmd)
+		self.ES.AddTicket(title.tik)
+		contents = title.tmd.getContents()
+		for i, content in enumerate(contents):
+			self.ES.AddContentStart(title.tmd.titleid, content.cid)
+			data = title[content.index]
+			self.ES.AddContentData(content.cid, data)
+			self.ES.AddContentFinish(content.cid)
 		self.ES.AddTitleFinish()
 		if(add_to_menu == True):
 			if(((tmd.tmd.titleid >> 32) != 0x00010008) and ((tmd.tmd.titleid >> 32) != 0x00000001)):
 				self.addTitleToMenu(tmd.tmd.titleid)
 
-	def createWADFromTitle(self, title, cert, output, version=0):
+	def getTitle(self, title_id, version = None, fakesign = True):
+		title = Title()
 		tmdpth = self.f + "/title/%08x/%08x/content/title.tmd" % (title >> 32, title & 0xFFFFFFFF)
 		if(version != 0):
 			tmdpth += ".%d" % version
-		tmd = TMD.loadFile(tmdpth)
-		if(not os.path.isdir("export")):
-			os.mkdir("export")
-		tmd.fakesign()
-		tmd.dumpFile("export/tmd")
-		tik = Ticket.loadFile(self.f + "/ticket/%08x/%08x.tik" % (title >> 32, title & 0xFFFFFFFF))
-		tik.fakesign()
-		tik.dumpFile("export/tik")
-		contents = tmd.getContents()
-		for i in range(tmd.tmd.numcontents):
+		title.tmd = TMD.loadFile(tmdpth)
+		if(fakesign):
+			title.tmd.fakesign()
+		title.tik = Ticket.loadFile(self.f + "/ticket/%08x/%08x.tik" % (title >> 32, title & 0xFFFFFFFF))
+		if(fakesign):
+			title.tik.fakesign()
+		contents = title.tmd.getContents()
+		for i in range(len(contents)):
 			path = ""
 			if(contents[i].type == 0x0001):
 				path = self.f + "/title/%08x/%08x/content/%08x.app" % (title >> 32, title & 0xFFFFFFFF, contents[i].cid)
@@ -403,23 +400,11 @@ class NAND:
 			fp = open(path, "rb")
 			data = fp.read()
 			fp.close()
-			fp = open("export/%08x.app" % contents[i].index, "wb")
-			fp.write(data)
-			fp.close()
+			title.contents.append(data)
 		fp = open(cert, "rb")
 		data = fp.read()
 		fp.close()
-		fp = open("export/cert", "wb")
-		fp.write(data)
-		fp.close()
-		WAD("export").pack(output)
-		for i in range(tmd.tmd.numcontents):
-			os.remove("export/%08x.app" % contents[i].index)
-		os.remove("export/tmd")
-		os.remove("export/tik")
-		os.remove("export/cert")
-		os.rmdir("export")
-		
+		title.cert = data
 
 class ISFSClass:
 	"""This class contains an interface to the NAND that simulates the permissions system and all other aspects of the ISFS.

@@ -1,6 +1,7 @@
 __all__ = []
 
 from common import *
+
 from formats import *
 from title import *
 from disc import *

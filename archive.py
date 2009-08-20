@@ -1,11 +1,8 @@
 from common import *
-from title import *
 import zlib
 
+
 class U8(WiiArchive):
-	"""This class can unpack and pack U8 archives, which are used all over the Wii. They are often used in Banners and contents in Downloadable Titles. Please remove all headers and compression first, kthx.
-	
-	The f parameter is either the source folder to pack, or the source file to unpack."""
 	class U8Header(Struct):
 		__endian__ = Struct.BE
 		def __format__(self):
@@ -34,7 +31,7 @@ class U8(WiiArchive):
 		rootnode.type = 0x0100
 		
 		nodes = []
-		strings = "\x00"
+		strings = '\x00'
 		data = ''
 		
 		for item, value in self.files:
@@ -48,21 +45,22 @@ class U8(WiiArchive):
 			node.name_offset = len(strings)
 			strings += name + '\x00'
 		
-			if(value == None):
+			if(value == None): # directory
 				node.type = 0x0100
 				node.data_offset = recursion
 				
-				node.size = len(nodes)
+				node.size = len(nodes) + 1
 				for one, two in self.files:
 					if(one[:len(item)] == item): # find nodes in the folder
 						node.size += 1
-				node.size += 1
-			else:
-				sz = len(value)
-				node.data_offset = len(data)
-				data += value + "\x00" * (align(sz, 32) - sz) # 32 seems to work best for fuzzyness? I'm still really not sure
-				node.size = sz
+			else: # file
 				node.type = 0x0000
+				node.data_offset = len(data)
+				#print "before: " + str(len(data))
+				data += value + ('\x00' * (align(len(value), 32) - len(value))) # 32 seems to work best for fuzzyness? I'm still really not sure
+				#print "after: " + str(len(data))
+				node.size = len(value)
+				#print "sz: " + str(len(value))
 			nodes.append(node)
 			
 		header.header_size = ((len(nodes) + 1) * len(rootnode)) + len(strings)
@@ -76,8 +74,8 @@ class U8(WiiArchive):
 		fd = ''
 		fd += header.pack()
 		fd += rootnode.pack()
-		for nodeobj in nodes:
-			fd += nodeobj.pack()
+		for node in nodes:
+			fd += node.pack()
 		fd += strings
 		fd += "\x00" * (header.data_offset - header.rootnode_offset - header.header_size)
 		fd += data
@@ -116,12 +114,18 @@ class U8(WiiArchive):
 	def _load(self, data):
 		offset = 0
 		
-		header = self.U8Header()
-		header.unpack(data[offset:offset + len(header)])
+		for i in range(len(data)):
+			header = self.U8Header()
+			header.unpack(data[offset:offset + len(header)])
+			if(header.tag == "U\xAA8-"):
+				break
+			data = data[1:]
 		offset += len(header)
-		
-		assert header.tag == "U\xAA8-"
 		offset = header.rootnode_offset
+		
+		#print header.rootnode_offset
+		#print header.header_size
+		#print header.data_offset
 		
 		rootnode = self.U8Node()
 		rootnode.unpack(data[offset:offset + len(rootnode)])
@@ -149,12 +153,21 @@ class U8(WiiArchive):
 				recursiondir.append(name)
 				assert len(recursion) == node.data_offset + 2 # haxx
 				self.files.append(('/'.join(recursiondir), None))
+				
+				#print "Dir: " + name
 			elif(node.type == 0): # file
 				self.files.append(('/'.join(recursiondir) + '/' + name, data[node.data_offset:node.data_offset + node.size]))
 				offset += node.size
+				
+				#print "File: " + name
 			else: # unknown type -- wtf?
 				pass
-								
+			
+			#print "Data Offset: " + str(node.data_offset)
+			#print "Size: " + str(node.size)	
+			#print "Name Offset: " + str(node.name_offset)
+			#print ""
+			
 			sz = recursion.pop()
 			if(sz != counter + 1):
 				recursion.append(sz)
@@ -192,144 +205,8 @@ class U8(WiiArchive):
 		self.files.append((key, val))
 		
 
-class WAD(WiiArchive):
-	def __init__(self, boot2 = False):
-		self.tmd = TMD()
-		self.tik = Ticket()
-		self.contents = []
-		self.boot2 = False
-		self.cert = ""
-	def _load(self, data):
-		if(self.boot2 != True):
-			headersize, wadtype, certsize, reserved, tiksize, tmdsize, datasize, footersize, padding = struct.unpack('>I4s6I32s', data[:64])
-			pos = 64
-		else:
-			headersize, data_offset, certsize, tiksize, tmdsize, padding = struct.unpack('>IIIII12s', data[:32])
-			pos = 32
-			
-		rawcert = data[pos:pos + certsize]
-		pos += certsize
-		if(self.boot2 != True):
-			if(certsize % 64 != 0):
-				pos += 64 - (certsize % 64)
-		self.cert = rawcert
 
-		rawtik = data[pos:pos + tiksize]
-		pos += tiksize
-		if(self.boot2 != True):
-			if(tiksize % 64 != 0):
-				pos += 64 - (tiksize % 64)
-		self.tik = Ticket.load(rawtik)
-				
-		rawtmd = data[pos:pos + tmdsize]
-		pos += tmdsize
-		if(self.boot2 == True):
-			pos = data_offset
-		else:
-			pos += 64 - (tmdsize % 64)
-		self.tmd = TMD.load(rawtmd)
-		
-		titlekey = self.tik.getTitleKey()
-		contents = self.tmd.getContents()
-		for i in range(0, len(contents)):
-			tmpsize = contents[i].size
-			if(tmpsize % 16 != 0):
-				tmpsize += 16 - (tmpsize % 16)
-			encdata = data[pos:pos + tmpsize]
-			pos += tmpsize
-			decdata = Crypto().decryptContent(titlekey, contents[i].index, encdata)
-			self.contents.append(decdata)
-			if(tmpsize % 64 != 0):
-				pos += 64 - (tmpsize % 64)
-	def _loadDir(self, dir):
-		origdir = os.getcwd()
-		os.chdir(dir)
-		
-		self.tmd = TMD.loadFile("tmd")
-		self.tik = Ticket.loadFile("tik")
-		self.cert = open("cert", "rb").read()
-		
-		contents = self.tmd.getContents()
-		for i in range(len(contents)):
-			self.contents.append(open("%08x.app" % i, "rb").read())
-		os.chdir(origdir)
-	def _dumpDir(self, dir):
-		origdir = os.getcwd()
-		os.chdir(dir)
-		
-		contents = self.tmd.getContents()
-		for i in range(len(contents)):
-			open("%08x.app" % i, "wb").write(self.contents[i])
-		self.tmd.dumpFile("tmd")
-		self.tik.dumpFile("tik")
-		open("cert", "wb").write(self.cert)
-			
-		os.chdir(origdir)
-	def _dump(self, fakesign = True):
-		titlekey = self.tik.getTitleKey()
-		contents = self.tmd.getContents()
-		
-		apppack = ""
-		for i, content in enumerate(contents):
-			if(fakesign):
-				content.hash = str(Crypto().createSHAHash(self.contents[content.index]))
-				content.size = len(self.contents[content.index])
-			
-			encdata = Crypto().encryptContent(titlekey, content.index, self.contents[content.index])
-			
-			apppack += encdata
-			if(len(encdata) % 64 != 0):
-				apppack += "\x00" * (64 - (len(encdata) % 64))
-					
-		if(fakesign):
-			self.tmd.setContents(contents)
-			self.tmd.fakesign()
-			self.tik.fakesign()
-		
-		rawtmd = self.tmd.dump()
-		rawcert = self.cert
-		rawtik = self.tik.dump()
-		
-		sz = 0
-		for i in range(len(contents)):
-			sz += contents[i].size
-			if(sz % 64 != 0):
-				sz += 64 - (contents[i].size % 64)
-		
-		if(self.boot2 != True):
-			pack = struct.pack('>I4s6I', 32, "Is\x00\x00", len(rawcert), 0, len(rawtik), len(rawtmd), sz, 0)
-			pack += "\x00" * 32
-		else:
-			pack = struct.pack('>IIIII12s', 32, align(len(rawcert) + len(rawtik) + len(rawtmd), 0x40), len(rawcert), len(rawtik), len(rawtmd), "\x00" * 12)
-		
-		pack += rawcert
-		if(len(rawcert) % 64 != 0 and self.boot2 != True):
-			pack += "\x00" * (64 - (len(rawcert) % 64))
-		pack += rawtik
-		if(len(rawtik) % 64 != 0 and self.boot2 != True):
-			pack += "\x00" * (64 - (len(rawtik) % 64))
-		pack += rawtmd
-		if(len(rawtmd) % 64 != 0 and self.boot2 != True):
-			pack += "\x00" * (64 - (len(rawtmd) % 64))
-		
-		if(self.boot2 == True):
-			pack += "\x00" * (align(len(rawcert) + len(rawtik) + len(rawtmd), 0x40) - (len(rawcert) + len(rawtik) + len(rawtmd)))
-		
-		pack += apppack
-		return pack
-	def __getitem__(self, idx):
-		return self.contents[idx]
-	def __setitem__(self, idx, value):
-		self.contents[idx] = value
-	def __str__(self):
-		out = ""
-		out += "Wii WAD:\n"
-		out += str(self.tmd)
-		out += str(self.tik)		
-		return out
-
-
-class CCF():
+class CCF:
 	class CCFHeader(Struct):
 		__endian__ = Struct.LE
 		def __format__(self):
@@ -441,14 +318,3 @@ class CCF():
 			output.close()
 			
 			currentOffset += len(fileEntry)
-
-if(__name__ == '__main__'):
-	wad = WAD.loadFile("testing.wad")
-	print wad
-	wad.dumpDir("outdir")
-	wad.dumpFile("interesting.wad", fakesign = False) #keyword arguements work as expected when calling _dump(). awesome.
-	wad2 = WAD.loadDir("outdir")
-	print wad2
-	wad3 = WAD.loadFile("interesting.wad")
-	print wad3
-	wad3.dumpDir("outdir2")

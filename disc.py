@@ -317,7 +317,7 @@ class WOD: #WiiOpticalDisc
 		for x in range(len(self.markedBlocks)):
 			rawPartition.write(self.readBlock(self.markedBlocks[x])) # Write each decrypted block
 
-class updateInf():
+class updateInf:
 	def __init__(self, f):
 		self.buffer = open(f, 'r+b').read()
 	def __str__(self):

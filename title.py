@@ -252,63 +252,190 @@ class TMD(WiiObject):
 		"""Sets the boot index of the TMD to the value of index."""
 		self.tmd.boot_index = index
 
+class Title(WiiArchive):
+	def __init__(self, boot2 = False):
+		self.tmd = TMD()
+		self.tik = Ticket()
+		self.contents = []
+		self.boot2 = False
+		self.cert = ""
+	def _load(self, data):
+		if(self.boot2 != True):
+			headersize, wadtype, certsize, reserved, tiksize, tmdsize, datasize, footersize, padding = struct.unpack('>I4s6I32s', data[:64])
+			pos = 64
+		else:
+			headersize, data_offset, certsize, tiksize, tmdsize, padding = struct.unpack('>IIIII12s', data[:32])
+			pos = 32
+			
+		rawcert = data[pos:pos + certsize]
+		pos += certsize
+		if(self.boot2 != True):
+			if(certsize % 64 != 0):
+				pos += 64 - (certsize % 64)
+		self.cert = rawcert
+
+		rawtik = data[pos:pos + tiksize]
+		pos += tiksize
+		if(self.boot2 != True):
+			if(tiksize % 64 != 0):
+				pos += 64 - (tiksize % 64)
+		self.tik = Ticket.load(rawtik)
+				
+		rawtmd = data[pos:pos + tmdsize]
+		pos += tmdsize
+		if(self.boot2 == True):
+			pos = data_offset
+		else:
+			pos += 64 - (tmdsize % 64)
+		self.tmd = TMD.load(rawtmd)
+		
+		titlekey = self.tik.getTitleKey()
+		contents = self.tmd.getContents()
+		for i in range(0, len(contents)):
+			tmpsize = contents[i].size
+			if(tmpsize % 16 != 0):
+				tmpsize += 16 - (tmpsize % 16)
+			encdata = data[pos:pos + tmpsize]
+			pos += tmpsize
+			decdata = Crypto().decryptContent(titlekey, contents[i].index, encdata)
+			self.contents.append(decdata)
+			if(tmpsize % 64 != 0):
+				pos += 64 - (tmpsize % 64)
+	def _loadDir(self, dir):
+		origdir = os.getcwd()
+		os.chdir(dir)
+		
+		self.tmd = TMD.loadFile("tmd")
+		self.tik = Ticket.loadFile("tik")
+		self.cert = open("cert", "rb").read()
+		
+		contents = self.tmd.getContents()
+		for i in range(len(contents)):
+			self.contents.append(open("%08x.app" % i, "rb").read())
+		os.chdir(origdir)
+	def _dumpDir(self, dir, useidx = True, decrypt = True):
+		origdir = os.getcwd()
+		os.chdir(dir)
+		
+		contents = self.tmd.getContents()
+		titlekey = self.tik.getTitleKey()
+		for i, content  in enumerate(contents):
+			if(useidx == True):
+				output = content.index
+			else:
+				output = content.cid
+			if(decrypt == True):
+				open("%08x.app" % output, "wb").write(self.contents[i])
+			else:
+				open("%08x.app" % output, "wb").write(Crypto.encryptContent(titlekey, content.index, self.contents[content.index]))
+		self.tmd.dumpFile("tmd")
+		self.tik.dumpFile("tik")
+		open("cert", "wb").write(self.cert)
+			
+		os.chdir(origdir)
+	def _dump(self, fakesign = True):
+		titlekey = self.tik.getTitleKey()
+		contents = self.tmd.getContents()
+		
+		apppack = ""
+		for i, content in enumerate(contents):
+			if(fakesign):
+				content.hash = str(Crypto.createSHAHash(self.contents[content.index]))
+				content.size = len(self.contents[content.index])
+			
+			encdata = Crypto.encryptContent(titlekey, content.index, self.contents[content.index])
+			
+			apppack += encdata
+			if(len(encdata) % 64 != 0):
+				apppack += "\x00" * (64 - (len(encdata) % 64))
+					
+		if(fakesign):
+			self.tmd.setContents(contents)
+			self.tmd.fakesign()
+			self.tik.fakesign()
+		
+		rawtmd = self.tmd.dump()
+		rawcert = self.cert
+		rawtik = self.tik.dump()
+		
+		sz = 0
+		for i in range(len(contents)):
+			sz += contents[i].size
+			if(sz % 64 != 0):
+				sz += 64 - (contents[i].size % 64)
+		
+		if(self.boot2 != True):
+			pack = struct.pack('>I4s6I', 32, "Is\x00\x00", len(rawcert), 0, len(rawtik), len(rawtmd), sz, 0)
+			pack += "\x00" * 32
+		else:
+			pack = struct.pack('>IIIII12s', 32, align(len(rawcert) + len(rawtik) + len(rawtmd), 0x40), len(rawcert), len(rawtik), len(rawtmd), "\x00" * 12)
+		
+		pack += rawcert
+		if(len(rawcert) % 64 != 0 and self.boot2 != True):
+			pack += "\x00" * (64 - (len(rawcert) % 64))
+		pack += rawtik
+		if(len(rawtik) % 64 != 0 and self.boot2 != True):
+			pack += "\x00" * (64 - (len(rawtik) % 64))
+		pack += rawtmd
+		if(len(rawtmd) % 64 != 0 and self.boot2 != True):
+			pack += "\x00" * (64 - (len(rawtmd) % 64))
+		
+		if(self.boot2 == True):
+			pack += "\x00" * (align(len(rawcert) + len(rawtik) + len(rawtmd), 0x40) - (len(rawcert) + len(rawtik) + len(rawtmd)))
+		
+		pack += apppack
+		return pack
+	def fakesign(self):
+		self.tik.fakesign()
+		self.tmd.fakesign()
+	def __getitem__(self, idx):
+		return self.contents[idx]
+	def __setitem__(self, idx, value):
+		self.contents[idx] = value
+	def __str__(self):
+		out = ""
+		out += "Wii WAD:\n"
+		out += str(self.tmd)
+		out += str(self.tik)		
+		return out
+
+WAD = Title
+
 class NUS:
 	"""This class can download titles from NUS, or Nintendo Update Server. The titleid parameter is the long integer version of the title to download. The version parameter is optional and specifies the version to download. If version is not given, it is assumed to be the latest version on NUS."""
-	def __init__(self, titleid, version = None):
-		self.titleid = titleid
-		self.baseurl = "http://nus.cdn.shop.wii.com/ccs/download/%08x%08x/" % (titleid >> 32, titleid & 0xFFFFFFFF)
-		self.version = version
-	def download(self, fn = "", decrypt = True, useidx = True):
-		"""This will download a title from NUS into a directory either specified by fn (if it is not empty) or a directory created by the title id in hex form. If decrypt is true, it will decrypt the contents, otherwise it will not. A certs file is always created to enable easy WAD Packing. The parameter useidx specifies wheither to use the index or the content id for the file naming (default is index)."""
-		if(fn == ""):
-			fn = "%08x%08x" % (self.titleid >> 32, self.titleid & 0xFFFFFFFF)
-		try:
-			os.mkdir(fn)
-		except:
-			pass
-		os.chdir(fn)
-		
+	url = "http://nus.cdn.shop.wii.com/ccs/download/"
+	def download(self, titleid, version = None):
 		certs = ""
-		rawtmd = urllib.urlopen("http://nus.cdn.shop.wii.com/ccs/download/0000000100000002/tmd.289").read()
-		rawtik = urllib.urlopen("http://nus.cdn.shop.wii.com/ccs/download/0000000100000002/cetk").read()
+		tmd = TMD.load(urllib.urlopen("http://nus.cdn.shop.wii.com/ccs/download/0000000100000002/tmd.289").read())
+		tik = Ticket.load(urllib.urlopen("http://nus.cdn.shop.wii.com/ccs/download/0000000100000002/cetk").read())
 		
-		certs += rawtik[0x2A4:0x2A4 + 0x300] #XS
-		certs += rawtik[0x2A4 + 0x300:] #CA (tik)
-		certs += rawtmd[0x328:0x328 + 0x300] #CP
+		certs += tik.dump()[0x2A4:0x2A4 + 0x300] #XS
+		certs += tik.dump()[0x2A4 + 0x300:] #CA (tik)
+		certs += tmd.dump()[0x328:0x328 + 0x300] #CP
 
-		if(Crypto().createMD5HashHex(certs) != "7ff50e2733f7a6be1677b6f6c9b625dd"):
+		if(Crypto.createMD5HashHex(certs) != "7ff50e2733f7a6be1677b6f6c9b625dd"):
 			raise ValueError("Failed to create certs! MD5 mistatch.")
-		
-		open("cert", "wb").write(certs)
 		
 		if(self.version == None):
 			versionstring = ""
 		else:
 			versionstring = ".%u" % self.version
+			
+		titleurl = self.url + "%08x%08x/" % (titleid >> 32, titleid & 0xFFFFFFFF)
 		
-		urllib.urlretrieve(self.baseurl + "tmd" + versionstring, "tmd")
-		tmd = TMD.loadFile("tmd")
-		tmd.dumpFile("tmd") # strip certs
+		tmd = TMD.load(urllib.urlopen(titleurl + "tmd" + versionstring).read())
+		tik = Ticket.load(urllib.urlopen(titleurl + "cetk").read())
 		
-		urllib.urlretrieve(self.baseurl + "cetk", "tik")
-		tik = Ticket.loadFile("tik")
-		tik.dumpFile("tik") # strip certs
-		if(decrypt):
-			titlekey = tik.getTitleKey()
+		title = Title()
+		title.tmd = tmd
+		title.tik = tik
+		title.cert = certs
 		
 		contents = tmd.getContents()
 		for content in contents:
-			output = content.cid
-			if(useidx):
-				output = content.index
-				
-			urllib.urlretrieve(self.baseurl + ("%08x" % content.cid), "%08x.app" % output)
-			
-			if(decrypt):
-				data = open("%08x.app" % output, "rb").read(content.size)
-				tmpdata = Crypto().decryptContent(titlekey, content.index, data)
-				if(Crypto().validateSHAHash(tmpdata, content.hash) == 0):
-					raise ValueError("Decryption failed! SHA1 mismatch.")
-				open("%08x.app" % output, "wb").write(tmpdata)
-				
-		os.chdir("..")
+			encdata = urllib.urlopen(titleurl + ("%08x" % content.cid)).read(content.size)
+			decdata = Crypto.decryptContent(titlekey, content.index, encdata)
+			if(Crypto.validateSHAHash(decdata, content.hash) == 0):
+				raise ValueError("Decryption failed! SHA1 mismatch.")
+			title.contents.append(decdata)
+	download = classmethod(download)

@@ -1,4 +1,5 @@
 import os, hashlib, struct, subprocess, fnmatch, shutil, urllib, array, time, sys, tempfile, wave
+from binascii import *
 from cStringIO import StringIO
 
 from Crypto.Cipher import AES
@@ -7,8 +8,8 @@ from PIL import Image
 from Struct import Struct
 
 def align(x, boundary):
-	if(x % boundary):
-		x += (x + boundary) - (x % boundary)
+	while x % boundary != 0:
+		x += 1
 	return x
 	
 def clamp(var, min, max):
@@ -44,48 +45,57 @@ def hexdump2(src, length = 16): # dumps to a "hex editor" style output
 class Crypto(object):
 	"""This is a Cryptographic/hash class used to abstract away things (to make changes easier)"""
 	align = 64
-	@classmethod
+	
 	def decryptData(self, key, iv, data, align = True):
 		"""Decrypts some data (aligns to 64 bytes, if needed)."""
 		if((len(data) % self.align) != 0 and align):
 			return AES.new(key, AES.MODE_CBC, iv).decrypt(data + ("\x00" * (self.align - (len(data) % self.align))))
 		else:
 			return AES.new(key, AES.MODE_CBC, iv).decrypt(data)
-	@classmethod
+	decryptData = classmethod(decryptData)
+
 	def encryptData(self, key, iv, data, align = True):
 		"""Encrypts some data (aligns to 64 bytes, if needed)."""
 		if((len(data) % self.align) != 0 and align):
 			return AES.new(key, AES.MODE_CBC, iv).encrypt(data + ("\x00" * (self.align - (len(data) % self.align))))
 		else:
 			return AES.new(key, AES.MODE_CBC, iv).encrypt(data)
-	@classmethod
+	encryptData = classmethod(encryptData)
+
 	def decryptContent(self, titlekey, idx, data):
 		"""Decrypts a Content."""
 		iv = struct.pack(">H", idx) + "\x00" * 14
 		return self.decryptData(titlekey, iv, data)
-	@classmethod
+	decryptContent = classmethod(decryptContent)
+
 	def decryptTitleKey(self, commonkey, tid, enckey):
 		"""Decrypts a Content."""
 		iv = struct.pack(">Q", tid) + "\x00" * 8
 		return self.decryptData(commonkey, iv, enckey, False)
-	@classmethod
+	decryptTitleKey = classmethod(decryptTitleKey)
+
 	def encryptContent(self, titlekey, idx, data):
 		"""Encrypts a Content."""
 		iv = struct.pack(">H", idx) + "\x00" * 14
 		return self.encryptData(titlekey, iv, data)
-	@classmethod
+	encryptContent = classmethod(encryptContent)
+
 	def createSHAHash(self, data): #tested WORKING (without padding)
 		return hashlib.sha1(data).digest()
-	@classmethod
+	createSHAHash = classmethod(createSHAHash)
+
 	def createSHAHashHex(self, data):
 		return hashlib.sha1(data).hexdigest()
-	@classmethod
+	createSHAHashHex = classmethod(createSHAHashHex)
+
 	def createMD5HashHex(self, data):
 		return hashlib.md5(data).hexdigest()
-	@classmethod
+	createMD5HashHex = classmethod(createMD5HashHex)
+
 	def createMD5Hash(self, data):
 		return hashlib.md5(data).digest()
-	@classmethod
+	createMD5Hash = classmethod(createMD5Hash)
+
 	def validateSHAHash(self, data, hash):
 		contentHash = hashlib.sha1(data).digest()
 		return 1
@@ -94,17 +104,19 @@ class Crypto(object):
 		else:
 			#raise ValueError('Content hash : %s : len %i' % (hexdump(contentHash), len(contentHash)) + 'Expected : %s : len %i' % (hexdump(hash), len(hash)))
 			return 0
+	validateSHAHash = classmethod(validateSHAHash)
 
 class WiiObject(object):
-	@classmethod
 	def load(cls, data, *args, **kwargs):
 		self = cls()
 		self._load(data, *args, **kwargs)
 		return self
-	@classmethod
+	load = classmethod(load)
+
 	def loadFile(cls, filename, *args, **kwargs):
 		return cls.load(open(filename, "rb").read(), *args, **kwargs)
-	
+	loadFile = classmethod(loadFile)
+
 	def dump(self, *args, **kwargs):
 		return self._dump(*args, **kwargs)
 	def dumpFile(self, filename, *args, **kwargs):
@@ -112,11 +124,11 @@ class WiiObject(object):
 		return filename
 
 class WiiArchive(WiiObject):
-	@classmethod
 	def loadDir(cls, dirname):
 		self = cls()
 		self._loadDir(dirname)
 		return self
+	loadDir = classmethod(loadDir)
 		
 	def dumpDir(self, dirname):
 		if(not os.path.isdir(dirname)):
@@ -131,7 +143,8 @@ class WiiHeader(object):
 		open(filename, "wb").write(self.add())
 	def removeFile(self, filename):
 		open(filename, "wb").write(self.remove())
-	@classmethod
 	def loadFile(cls, filename, *args, **kwargs):
 		return cls(open(filename, "rb").read(), *args, **kwargs)
+	loadFile = classmethod(loadFile)
+	
 	

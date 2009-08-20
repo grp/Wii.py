@@ -28,9 +28,9 @@ class Struct(object):
 	
 	float = StructType(('f', 4))
 
-	@classmethod
 	def string(cls, len, offset=0, encoding=None, stripNulls=False, value=''):
 		return StructType(('string', (len, offset, encoding, stripNulls, value)))
+	string = classmethod(string)
 	
 	LE = '<'
 	BE = '>'

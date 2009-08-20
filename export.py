@@ -251,3 +251,100 @@ class Savegame():
 			
 	def getFilesCount(self):
 		return self.bkHdr.filesCount
+		
+		
+class locDat:
+	class locHeader(Struct):
+		def __format__(self):
+			self.magic = Struct.string(4)
+			self.md5 = Struct.string(16)
+
+	def __init__(self, f):
+		self.sdKey = '\xab\x01\xb9\xd8\xe1\x62\x2b\x08\xaf\xba\xd8\x4d\xbf\xc2\xa5\x5d'
+		self.sdIv = '\x21\x67\x12\xe6\xaa\x1f\x68\x9f\x95\xc5\xa2\x23\x24\xdc\x6a\x98'
+		
+		self.titles = []
+		self.usedBlocks = 0
+		self.freeBlocks = 0
+		
+		try:
+			self.fp = open(f, 'r+')
+		except:
+			raise Exception('File not found')
+			
+		plainBuffer = Crypto().decryptData(self.sdKey, self.sdIv, self.fp.read(), False)	
+			
+		self.hdr = self.locHeader().unpack(plainBuffer[:0x14])
+		
+		for x in range(240):
+			self.titles.append(plainBuffer[0x14 + x * 4:0x14 + (x + 1) * 4])
+			if self.titles[x] == '\x00\x00\x00\x00':
+				self.freeBlocks += 1
+				
+		self.usedBlocks = 240 - self.freeBlocks 
+		
+	def __str__(self):
+		out = ''
+		out += 'Used %i blocks out of 240\n\n' % self.usedBlocks
+		for x in range(240):
+			if self.titles[x] == '\x00\x00\x00\x00':
+				out += 'Block %i on page %i is empty\n' % (x, x / 12)
+			else:
+				out += 'Block %i on page %i hold title %s\n' % (x, x / 12, self.titles[x])
+				
+		return out
+				
+	def getFreeBlocks(self):
+		return self.freeBlocks 
+		
+	def getUsedBlocks(self):
+		return self.usedBlocks
+		
+	def isBlockFree(self, x, y, page):
+		if self.titles[((x + (y * 4) + (page * 12)))] == '\x00\x00\x00\x00':
+			return 1
+			
+		return 0
+			
+	def isTitleInList(self, title):
+		try:
+			return self.titles.index(title.upper())
+		except:
+			return -1
+			
+	def getPageTitles(self, page):
+		if page > 19:
+			raise Exception('Out of bounds')
+			
+		return self.titles[12 * page:12 * (page + 1)]
+			
+	def getTitle(self, x, y, page):
+		if x > 3 or y > 2 or page > 19:
+			raise Exception('Out of bounds')
+			
+		return self.titles[((x + (y * 4) + (page * 12)))]
+		
+	def setTitle(self, x, y, page, element):
+		if x > 3 or y > 2 or page > 19 or len(element) > 4:
+			raise Exception('Out of bounds')
+			
+		self.titles[((x + (y * 4) + (page * 12)))] = element.upper()
+		
+		titles = ''
+		
+		titles += self.hdr.magic
+		titles += self.hdr.md5
+		
+		for x in range(240):
+			titles += self.titles[x]
+			
+		titles += '\x00' * 12
+		
+		titles = titles[:0x4] + Crypto().createMD5Hash(titles) + titles[0x14:]
+
+		self.fp.seek(0)
+		self.fp.write(Crypto().encryptData(self.sdKey, self.sdIv, titles))
+			
+	def delTitle(self, x, y, page):
+		self.setTitle(x, y, page, '\x00\x00\x00\x00')
+
