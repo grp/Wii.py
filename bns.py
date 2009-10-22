@@ -42,6 +42,7 @@ class BNS_info(object):
 		self.samplerate = 0xac44
 		self.pad0 = 0x0000
 		self.loop_start = 0x00000000
+		#sample count#
 		self.loop_end = 0x00000000
 		self.offset_to_chan_starts = 0x00000018
 		self.pad2 = 0x00000000
