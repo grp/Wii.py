@@ -76,6 +76,8 @@ class BNS_info(object):
 		self.magic, self.size = struct.unpack('>4sI', buffer[offset+0:offset+8])
 		self.codec, self.has_loop = struct.unpack('>BB', buffer[offset+8:offset+10])
 		self.chan_cnt, self.zero = struct.unpack('>BB', buffer[offset+10:offset+12])
+		assert self.chan_cnt > 0
+		assert self.chan_cnt <=2
 		self.samplerate, self.pad0 = struct.unpack('>HH', buffer[offset+12:offset+16])
 		assert self.samplerate <= 48000
 		assert self.samplerate > 32000
@@ -175,7 +177,7 @@ class BNS_info(object):
 		print "Samplerate: %04x %d" % ( self.samplerate , self.samplerate )
 		print "Padding: %04x" % self.pad0
 		print "Loop Start: %08x" % self.loop_start
-		print "Loop End: %08x" % self.loop_end
+		print "Sample Count / Loop End: %08x" % self.loop_end
 		print "Channels Starts Offsets: %08x" % self.offset_to_chan_starts
 		print "Padding: %08x" % self.pad2
 		print "Channel 1 Start Offset: %08x" % self.channel1_start_offset

@@ -1,9 +1,19 @@
+#!/usr/bin/python
+
+import sys
 from formats import locDat
 
-sdLoc = locDat('/home/giuseppe/Scrivania/sysmenu/loc.dat')
+def main():
+	if len(sys.argv) == 1:
+		print 'Usage: python testLOC.py <filename.dat>'
+		sys.exit(1)
 
-print '%s' % sdLoc
+	sdLoc = locDat(sys.argv[1])
 
-#concorsiMii = sdLoc.getTitle(0, 0, 0)
-sdLoc.delTitle(0, 0, 0)
+	print '%s' % sdLoc
 
+	#concorsiMii = sdLoc.getTitle(0, 0, 0)
+	sdLoc.delTitle(0, 0, 0)
+
+if __name__ == "__main__":
+	main()

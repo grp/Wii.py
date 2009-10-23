@@ -370,7 +370,7 @@ class NAND:
 		self.ES.AddTicket(title.tik)
 		contents = title.tmd.getContents()
 		for i, content in enumerate(contents):
-			self.ES.AddContentStart(title.tmd.titleid, content.cid)
+			self.ES.AddContentStart(title.tmd.getTitleID(), content.cid)
 			data = title[content.index]
 			self.ES.AddContentData(content.cid, data)
 			self.ES.AddContentFinish(content.cid)

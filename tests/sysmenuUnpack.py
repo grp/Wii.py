@@ -1,10 +1,20 @@
-import os
+#!/usr/bin/python
+
+import os, sys
 from U8 import *
 from title import WAD
 
-sysmenuWad = WAD('/home/giuseppe/Scrivania/RVL-WiiSystemmenu-v258.wad')
-sysmenuWad.unpack('/home/giuseppe/Scrivania/sysdump')
+def main():
+	if len(sys.argv) != 3:
+		print 'Usage: python sysmenuUnpack.py <filename.wad> <output_folder>'
+		sys.exit(1)
 
-for file in os.listdir('/home/giuseppe/Scrivania/sysdump'):
-	if open('/home/giuseppe/Scrivania/sysdump/' + file).read(4) == '\x55\xaa\x38\x2d':
-		U8('/home/giuseppe/Scrivania/sysdump/' + file).unpack('/home/giuseppe/Scrivania/sysdump/' + file + '_decompressed/') 
+	sysmenuWad = WAD(sys.argv[1])
+	sysmenuWad.unpack(sys.argv[2])
+
+	for file in os.listdir(sys.argv[2]):
+		if open(sys.argv[2] + file).read(4) == '\x55\xaa\x38\x2d':
+			U8(sys.argv[2] + file).unpack(sys.argv[2] + file + '_decompressed/') 
+	
+if __name__ == "__main__":
+	main()

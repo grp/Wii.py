@@ -231,7 +231,7 @@ def main():
 	if len(sys.argv) == 1:
 		print 'Usage: python bmg.py -r <filename.bmg> <filename.hog>'
 		print '                  == OR ==                           '
-		print 'Usage: python bmg.py -w> <filename.hog> <filename.bmg'
+		print 'Usage: python bmg.py -w <filename.hog> <filename.bmg>'
 		sys.exit(1)
 	if sys.argv[1] == "-r":
 		f = open(sys.argv[2], 'rb')

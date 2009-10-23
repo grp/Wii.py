@@ -408,18 +408,24 @@ class NUS:
 		certs = ""
 		tmd = TMD.load(urllib.urlopen("http://nus.cdn.shop.wii.com/ccs/download/0000000100000002/tmd.289").read())
 		tik = Ticket.load(urllib.urlopen("http://nus.cdn.shop.wii.com/ccs/download/0000000100000002/cetk").read())
-		
-		certs += tik.dump()[0x2A4:0x2A4 + 0x300] #XS
-		certs += tik.dump()[0x2A4 + 0x300:] #CA (tik)
-		certs += tmd.dump()[0x328:0x328 + 0x300] #CP
+
+		rawtmd = urllib.urlopen("http://nus.cdn.shop.wii.com/ccs/download/0000000100000002/tmd.289").read()
+		rawtik = urllib.urlopen("http://nus.cdn.shop.wii.com/ccs/download/0000000100000002/cetk").read()
+		certs += rawtik[0x2A4:0x2A4 + 0x300] #XS
+		certs += rawtik[0x2A4 + 0x300:] #CA (tik)
+		certs += rawtmd[0x328:0x328 + 0x300] #CP
+
+		#certs += tik.dump()[0x2A4:0x2A4 + 0x300] #XS
+		#certs += tik.dump()[0x2A4 + 0x300:] #CA (tik)
+		#certs += tmd.dump()[0x328:0x328 + 0x300] #CP
 
 		if(Crypto.createMD5HashHex(certs) != "7ff50e2733f7a6be1677b6f6c9b625dd"):
 			raise ValueError("Failed to create certs! MD5 mistatch.")
 		
-		if(self.version == None):
+		if(version == None):
 			versionstring = ""
 		else:
-			versionstring = ".%u" % self.version
+			versionstring = ".%u" % version
 			
 		titleurl = self.url + "%08x%08x/" % (titleid >> 32, titleid & 0xFFFFFFFF)
 		
@@ -434,8 +440,9 @@ class NUS:
 		contents = tmd.getContents()
 		for content in contents:
 			encdata = urllib.urlopen(titleurl + ("%08x" % content.cid)).read(content.size)
-			decdata = Crypto.decryptContent(titlekey, content.index, encdata)
+			decdata = Crypto.decryptContent(tik.titlekey, content.index, encdata)
 			if(Crypto.validateSHAHash(decdata, content.hash) == 0):
 				raise ValueError("Decryption failed! SHA1 mismatch.")
 			title.contents.append(decdata)
+		return title
 	download = classmethod(download)
