@@ -103,7 +103,7 @@ class WOD: #WiiOpticalDisc
 			raise Exception('Block size too big/small')	
 			
 		blockIV = block[0x3d0:0x3e0]
-		#print 'IV %s (len %i)\n' % (hexdump(blockIV), len(blockIV))
+		#~ print 'IV %s (len %i)\n' % (hexdump(blockIV), len(blockIV))
 		blockData = block[0x0400:0x8000]
 		
 		return Crypto().decryptData(self.partitionKey, blockIV, blockData, True)
@@ -125,7 +125,7 @@ class WOD: #WiiOpticalDisc
 		for x in range(readLen + 1):
 			blob += self.decryptBlock(self.fp.read(0x8000))
 		
-		self.markContent(offset, size)
+		#~ self.markContent(offset, size)
 		
 		#print 'Read from 0x%x to 0x%x' % (offset, offset + size)
 		offset -= readStart * 0x7C00
@@ -218,7 +218,7 @@ class WOD: #WiiOpticalDisc
 			newFile.size = size
 			newFile.nameOff = nameOff
 			fstDir.addChild(newFile)
-			self.markContent(fileOffset, size)
+			#~ self.markContent(fileOffset, size)
 			return i+1
 
 	def openPartition(self, index):
@@ -237,7 +237,9 @@ class WOD: #WiiOpticalDisc
 		self.fp.seek(self.partitionOffset)
 		
 		self.tikData = self.fp.read(0x2A4)
-		self.partitionKey = Ticket(self.tikData).getTitleKey()
+		self.partitionKey = Ticket().load(self.tikData).getTitleKey()
+		
+		print '%s' % hexdump(self.partitionKey)
 
 		self.tmdSize = struct.unpack(">I", self.fp.read(4))[0]
 		self.tmdOffset = struct.unpack(">I", self.fp.read(4))[0] >> 2
@@ -259,7 +261,7 @@ class WOD: #WiiOpticalDisc
 		self.appLdr = self.Apploader().unpack(self.readPartition (0x2440, 32))
 		self.partitionHdr = self.discHeader().unpack(self.readPartition (0x0, 0x400))
 		
-		self.partitionIos = TMD(self.getPartitionTmd()).getIOSVersion() & 0x0fffffff
+		self.partitionIos = TMD().load(self.getPartitionTmd()).getIOSVersion() & 0x0fffffff
 
 	def getFst(self):
 		fstBuf = self.readPartition(self.fstOffset, self.fstSize)
