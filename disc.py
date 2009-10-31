@@ -237,7 +237,7 @@ class WOD: #WiiOpticalDisc
 		self.fp.seek(self.partitionOffset)
 		
 		self.tikData = self.fp.read(0x2A4)
-		self.partitionKey = Ticket().load(self.tikData).getTitleKey()
+		self.partitionKey = Ticket.load(self.tikData).getTitleKey()
 		
 		print '%s' % hexdump(self.partitionKey)
 
@@ -261,7 +261,7 @@ class WOD: #WiiOpticalDisc
 		self.appLdr = self.Apploader().unpack(self.readPartition (0x2440, 32))
 		self.partitionHdr = self.discHeader().unpack(self.readPartition (0x0, 0x400))
 		
-		self.partitionIos = TMD().load(self.getPartitionTmd()).getIOSVersion() & 0x0fffffff
+		self.partitionIos = TMD.load(self.getPartitionTmd()).getIOSVersion() & 0x0fffffff
 
 	def getFst(self):
 		fstBuf = self.readPartition(self.fstOffset, self.fstSize)
