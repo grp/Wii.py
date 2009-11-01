@@ -22,10 +22,16 @@ def main():
 	sysV = 417
 	iosV = 6174
 
-	nand.importTitle(Wii.NUS.download(0x0000000100000002, sysV), False, True, False)
-	nand.importTitle(Wii.NUS.download(0x000000010000003C, iosV), False, True, False)
+	# IOS60 and 4.0U
+	nand.importTitle(Wii.NUS.download(0x0000000100000002, sysV), False, False, False)
+	nand.importTitle(Wii.NUS.download(0x000000010000003C, iosV), False, False, False)
+	# IOS61 and Shop
+	nand.importTitle(Wii.NUS.download(0x000000010000003D), False, False, False)
+	nand.importTitle(Wii.NUS.download(0x0001000248414641), False, False, False)
+	# EULA and RegnSel
 	#nand.importTitle(Wii.NUS.download(0x0001000848414C45), False, False, True, False)
 	#nand.importTitle(Wii.NUS.download(0x0001000848414B45), False, False, True, False)
+	# setting.txt
 	settings = "AREA=USA\r\nMODEL=RVL-001(USA)\r\nDVD=0\r\nMPCH=0x7FFE\r\nCODE=LU\r\n\nSERNO=568661910\r\nVIDEO=NTSC\r\nGAME=US\r\n"
 	#settings = "CODE=LU\r\nAREA=EUR\r\nDVD=0\r\nGAME=EU\r\nVIDEO=PAL\r\nMPCH=0x7FFE\r\nMODEL=RVL-001(EUR)\r\nSERNO=-559038737\r\n"
 	file = open(sys.argv[1] + '/title/00000001/00000002/data/setting.txt', 'wb')
