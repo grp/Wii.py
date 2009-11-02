@@ -315,6 +315,8 @@ class Title(WiiArchive):
 		os.chdir(origdir)
 	def _dumpDir(self, dir, useidx = True, decrypt = True):
 		origdir = os.getcwd()
+		if not os.path.isdir(dir):
+			os.mkdir(dir)
 		os.chdir(dir)
 		
 		contents = self.tmd.getContents()
