@@ -551,14 +551,16 @@ class BNS(object):
 			out_buffer = self.decode_adpcm(0, coeff0, buffer[data1_offset:data1_offset+8])
 			for y in xrange(14):
 				decoded_buffer_l[x*14+y] = out_buffer[y]
-			out_buffer = self.decode_adpcm(1, coeff1, buffer[data2_offset:data2_offset+8])
-			for y in xrange(14):
-				decoded_buffer_r[x*14+y] = out_buffer[y]
+			if self.info.chan_cnt == 2:
+				out_buffer = self.decode_adpcm(1, coeff1, buffer[data2_offset:data2_offset+8])
+				for y in xrange(14):
+					decoded_buffer_r[x*14+y] = out_buffer[y]
+				data2_offset += 8
 			data1_offset += 8
-			data2_offset += 8
 		for x in xrange(blocks * 14):
 			decoded_buffer.append(decoded_buffer_l[x])
-			decoded_buffer.append(decoded_buffer_r[x])
+			if self.info.chan_cnt == 2:
+				decoded_buffer.append(decoded_buffer_r[x])
 		return decoded_buffer
 	def eat(self, buffer, offset, decode=False):
 		co = self.header.eat(buffer, offset)
