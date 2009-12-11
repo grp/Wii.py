@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 from common import *
+import Wii
 
 class SoundFile:
 	def __init__(self, signal, filename, chancnt=2, samplerate=32000):
@@ -612,6 +613,27 @@ def main():
 		bns.create_bns(buffer, samplerate, num_chans)
 		bns.write(sys.argv[3])
 
+	elif sys.argv[1] == "-p":
+		f = wave.open(sys.argv[2], 'rb')
+		num_chans = f.getnchannels()
+		samplerate = f.getframerate()
+		assert samplerate >= 32000
+		assert samplerate <= 48000
+		buffer = f.readframes(f.getnframes())
+		f.close()
+
+		bns = BNS()
+		bns.create_bns(buffer, samplerate, num_chans)
+		bns.write(sys.argv[3])
+
+		f2 = open(sys.argv[3], 'rb')
+		tempbuffer = f2.read()
+		f2.close()
+		tempbuffer = Wii.IMD5(tempbuffer).add()
+		f3 = open(sys.argv[3], 'wb')
+		f3.write(tempbuffer)
+		f3.close()
+
 	elif sys.argv[1] == "-s":
 		file = open(sys.argv[2], 'rb')
 		if file:
@@ -630,6 +652,8 @@ def main():
 		print "                   == OR ==                  "
 		print "       python bns.py -e <input.wav> <sound.bin> "
 		print "                   == OR ==                  "
+		print "       python bns.py -p <input.wav> <sound.bin> "
+		print "                   == OR ==                  "
 		print "       python bns.py -s <sound.bin> "
 		sys.exit(1)
 
@@ -644,6 +668,8 @@ if __name__ == "__main__":
 		print "Usage: python bns.py -d <sound.bin> <output.wav>"
 		print "                   == OR ==                  "
 		print "       python bns.py -e <input.wav> <sound.bin> "
+		print "                   == OR ==                  "
+		print "       python bns.py -p <input.wav> <sound.bin> "
 		print "                   == OR ==                  "
 		print "       python bns.py -s <sound.bin> "
 		sys.exit(1)
