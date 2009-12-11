@@ -3,13 +3,14 @@
 from common import *
 
 class SoundFile:
-	def __init__(self, signal, filename, samplerate=32000):
+	def __init__(self, signal, filename, chancnt=2, samplerate=32000):
 		self.actual_file = StringIO()
 		self.file = wave.open(filename, 'wb')
 		self.signal = signal
 		self.sr = samplerate
+		self.chancnt = chancnt
 	def write(self):
-		self.file.setparams((2, 2, self.sr, self.sr*4, 'NONE', 'noncompressed'))
+		self.file.setparams((self.chancnt, 2, self.sr, self.sr*self.chancnt*2, 'NONE', 'noncompressed'))
 		self.file.writeframes(self.signal)
 		self.actual_file.seek(0)
 		self.file.close()
@@ -80,7 +81,7 @@ class BNS_info(object):
 		assert self.chan_cnt <=2
 		self.samplerate, self.pad0 = struct.unpack('>HH', buffer[offset+12:offset+16])
 		assert self.samplerate <= 48000
-		assert self.samplerate > 32000
+		assert self.samplerate >= 32000
 		self.loop_start, self.loop_end = struct.unpack('>II', buffer[offset+16:offset+24])
 		co = offset + 24
 		self.offset_to_chan_starts = Struct.uint32(buffer[co:co+4], endian='>')
@@ -424,14 +425,25 @@ class BNS(object):
 	def encode(self, buffer, offset=0):
 		sampsbuf = [0 for i in range(14)]
 		templen = len(buffer)
-		templen = templen / 4
+
+		if self.info.chan_cnt == 2:
+			templen = templen / 4
+		elif self.info.chan_cnt == 1:
+			templen = templen / 2
+
 		modlen = templen % 14
 		for x in xrange(14-modlen):
 			buffer = buffer + '\x00'
 			buffer = buffer + '\x00'
-			buffer = buffer + '\x00'
-			buffer = buffer + '\x00'
-		num_samps = len(buffer) / 4
+			if self.info.chan_cnt == 2:
+				buffer = buffer + '\x00'
+				buffer = buffer + '\x00'
+
+		if self.info.chan_cnt == 2:
+			num_samps = len(buffer) / 4
+		elif self.info.chan_cnt == 1:
+			num_samps = len(buffer) / 2
+
 		blocks = (num_samps + 13) / 14
 		snddatal = []
 		snddatar = []
@@ -440,25 +452,33 @@ class BNS(object):
 		for x in xrange(num_samps):
 			snddatal.append(Struct.int16(buffer[co:co+2]))
 			co += 2
-			snddatar.append(Struct.int16(buffer[co:co+2]))
-			co += 2
+			if self.info.chan_cnt == 2:
+				snddatar.append(Struct.int16(buffer[co:co+2]))
+				co += 2
 		data = [0 for i in range(blocks*16)]
 		data1_off = 0
 		data2_off = blocks * 8
-		self.info.chan2_start = data2_off
+
+		if self.info.chan_cnt == 2:
+			self.info.chan2_start = data2_off
+		else:
+			self.info.chan2_start = 0
+
 		for i in xrange(blocks):
 			for j in xrange(14):
 				sampsbuf[j] = snddatal[i*14+j]
 			out_buf = self.repack_adpcm(0, self.deftbl, sampsbuf)
 			for k in xrange(8):
 				data[data1_off+k] = out_buf[k]
-			for j in xrange(14):
-				sampsbuf[j] = snddatar[i*14+j]
-			out_buf = self.repack_adpcm(1, self.deftbl, sampsbuf)
-			for k in xrange(8):
-				data[data2_off+k] = out_buf[k]
+			if self.info.chan_cnt == 2:
+				for j in xrange(14):
+					sampsbuf[j] = snddatar[i*14+j]
+				out_buf = self.repack_adpcm(1, self.deftbl, sampsbuf)
+				for k in xrange(8):
+					data[data2_off+k] = out_buf[k]
 			data1_off += 8
-			data2_off += 8
+			if self.info.chan_cnt == 2:
+				data2_off += 8
 		self.info.loop_end = blocks * 7
 		return data
 	def create_bns(self, inbuf, samplerate=44100, channels=2):
@@ -469,6 +489,14 @@ class BNS(object):
 		self.data.size = len(self.data.data)
 		self.header.data_len = self.data.size
 		self.header.filesize = self.info.size + self.data.size + 8 + self.header.size
+		if self.info.chan_cnt == 1:
+			self.header.info_len = 0x60
+			self.header.data_off = 0x80
+			self.info.length = 0x60
+			self.info.channel1_start_offset = 0x0000001C
+			self.info.channel2_start_offset = 0x00000000 #technically this becomes chan1_start
+			self.info.chan1_start = 0x00000028 # technically this is coeff1_offset
+			self.info.coefficients1_offset = 0x00000000 # technically this is padding
 		self.info.loop_end = self.data.size - (self.data.size / 7)
 		for x in xrange(16):
 			self.info.coefficients1[x] = self.deftbl[x]
@@ -568,7 +596,7 @@ def main():
 		bns = BNS()
 		wavbuffer =  bns.eat(buffer, 0x00, True)
 		wavstring = ''.join(Struct.int16(p) for p in wavbuffer)
-		f = SoundFile(wavstring, sys.argv[3], bns.info.samplerate)
+		f = SoundFile(wavstring, sys.argv[3], bns.info.chan_cnt, bns.info.samplerate)
 		f.write()
 
 	elif sys.argv[1] == "-e":
@@ -583,6 +611,7 @@ def main():
 		bns = BNS()
 		bns.create_bns(buffer, samplerate, num_chans)
 		bns.write(sys.argv[3])
+
 	elif sys.argv[1] == "-s":
 		file = open(sys.argv[2], 'rb')
 		if file:
@@ -594,6 +623,7 @@ def main():
 		bns = BNS()
 		bns.eat(buffer, 0x00, False)
 		bns.show()
+
 	else:
 		print "Unknown second argument. possiblities are -d and -e"
 		print "Usage: python bns.py -d <sound.bin> <output.wav>"
