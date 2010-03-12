@@ -327,7 +327,7 @@ class Title(WiiArchive):
 			else:
 				output = content.cid
 			if(decrypt == True):
-				open("%08x.app" % output, "wb").write(self.contents[i])
+				open("%08x.app" % output, "wb").write(self.contents[i][:contents[i].size])
 			else:
 				open("%08x.app" % output, "wb").write(Crypto.encryptContent(titlekey, content.index, self.contents[content.index]))
 		self.tmd.dumpFile("tmd")
