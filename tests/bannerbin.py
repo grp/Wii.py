@@ -1,6 +1,6 @@
 import Wii, os, sys, shutil
 
-def packbanner()
+def packbanner():
 	bannerbin = U8()
 	bannerbin['arc'] = None #dir
 	bannerbin['arc/blyt'] = None
@@ -8,11 +8,11 @@ def packbanner()
 	bannerbin['arc/timg'] = None
 	# then do
 	origdir = os.getcwd()
-	for files in os.walk(origdir + 'arc/timg/')
+	for files in os.walk(origdir + 'arc/timg/'):
 		bannerbin['arc/timg/' + file] = open(file, "rb").read()
-	for files in os.walk(origdir + 'arc/anim/')
+	for files in os.walk(origdir + 'arc/anim/'):
 		bannerbin['arc/anim/' + file] = open(file, "rb").read()
-	for files in os.walk(origdir + 'arc/blyt/')
+	for files in os.walk(origdir + 'arc/blyt/'):
 		bannerbin['arc/blyt/' + file] = open(file, "rb").read()
 	fn = open("banner.bin", "w+b")
 	fn.write(u8object.dumpFile())
@@ -86,10 +86,12 @@ def doPack():
 	wad[0] = meta.dump()
 	wad[0] = wii.IMET(wad[0]).add(len(meta['meta/icon.bin']), len(meta['meta/banner.bin']), len(meta['meta/sound.bin']), title, langs)
 	
-
-	
 	print "Packing WAD..."
 	wad.dumpFile("squid.wad")
 
-packbanner()
-doPack()
+def main():
+	packbanner()
+	doPack()
+
+if __name__ == "__main__":
+	main()
